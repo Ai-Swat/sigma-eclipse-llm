@@ -1,0 +1,63 @@
+.code-block-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  align-self: stretch;
+  border-radius: 16px;
+  border: 1px solid var(--stroke-neutral-alfa-disabled) !important;
+  background: var(--background-neutral-secondary) !important;
+  color: var(--text-neutral-primary);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.code-block-header {
+  display: flex;
+  height: 40px;
+  padding: 12px 12px 12px 16px;
+  align-items: center;
+  gap: 10px;
+  align-self: stretch;
+  border-radius: 16px 16px 0 0;
+  background: var(--background-neutral-secondary) !important;
+  color: var(--text-neutral-tertiary);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 16px;
+  position: relative;
+}
+
+.copy-btn {
+  position: absolute;
+  top: 11px;
+  right: 15px;
+  padding: 0;
+  border: none;
+  cursor: pointer;
+  z-index: 2;
+  background: transparent;
+}
+
+.copy-btn svg {
+  stroke: var(--icon-neutral-disabled);
+}
+
+.copy-btn:hover svg {
+  stroke: var(--icon-neutral-primary);
+}
+
+pre {
+  padding: 12px 20px 16px;
+  width: 100%;
+  display: block;
+  margin: 0;
+}
+
+code {
+  display: inline;
+  white-space: pre-wrap;
+  background: transparent;
+}

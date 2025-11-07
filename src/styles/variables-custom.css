@@ -1,0 +1,128 @@
+:root.theme-dark {
+  --install-pwa-bg: #181f2d;
+  --install-pwa-border: #2e3441;
+  --install-pwa-box-shadow: -14px 21px 50px 0 rgba(17, 58, 200, 0.15);
+
+  --background-skeleton-animation: #3c3c3f;
+  --background-bg-primary-inverse: #f9f9fb;
+
+  --circle-button-hover: color-mix(
+    in srgb,
+    var(--background-neutral-global-secondary) 95%,
+    white
+  );
+
+  --overlay-bg: linear-gradient(180deg, rgba(10, 19, 30, 0) 0%, #0a131e 100%);
+  --box-shadow-1: none;
+  --box-shadow-2: none;
+  --box-shadow-mobile-plans: none;
+
+  --extension-box-shadow: 0 3px 7px 0 #00000005, 0 13px 13px 0 #00000005,
+    0 29px 17px 0 #00000003, 0 51px 20px 0 #00000000, 0 80px 22px 0 #00000000;
+  --box-shadow-popup: -1px 4px 10px 0px #0000000d, -3px 18px 18px 0px #0000000a,
+    -7px 40px 24px 0px #00000008, -13px 71px 29px 0px #00000003,
+    -21px 111px 32px 0px #00000000;
+
+  --background-gradient-extension: linear-gradient(
+    180.48deg,
+    rgba(211, 112, 241, 0.08) -3.41%,
+    rgba(255, 84, 127, 0) 98.98%
+  );
+
+  --footer-gradient: linear-gradient(
+    0deg,
+    #282a2d 70.07%,
+    rgba(40, 42, 45, 0) 99.12%
+  );
+
+  --footer-gradient-history: linear-gradient(
+    0deg,
+    var(--transparent-background-1-tertiary) 0%,
+    var(--transparent-background-2-tertiary) 54.75%
+  );
+  --footer-gradient-tg-messages: linear-gradient(
+    0deg,
+    var(--transparent-background-1-tertiary) 10.78%,
+    var(--transparent-background-2-tertiary) 100%
+  );
+  --plans-gradient: linear-gradient(
+    263.31deg,
+    var(--brand-pink-300) 0%,
+    var(--brand-pink-500) 100%
+  );
+  --plans-popup-background-gradient: linear-gradient(
+    0deg,
+    rgba(231, 100, 191, 0.15) 0%,
+    rgba(231, 100, 191, 0) 100%
+  );
+  --box-shadow-popular-plan: 0 0 0 2px transparent,
+    inset 0 0 0 2px rgba(255, 255, 255, 0.25);
+}
+
+:root.theme-white {
+  --install-pwa-bg: #0a131e;
+  --install-pwa-border: #0a131e;
+  --install-pwa-box-shadow: 0 7px 20px 0 rgba(0, 0, 0, 0.25);
+
+  --background-skeleton-animation: #f0f0f1;
+  --background-bg-primary-inverse: #282a2d;
+  --circle-button-hover: color-mix(
+    in srgb,
+    var(--background-neutral-global-secondary) 95%,
+    black
+  );
+
+  --overlay-bg: linear-gradient(
+    180deg,
+    rgba(240, 241, 244, 0) 0%,
+    #f0f1f4 100%
+  );
+  --box-shadow-1: 0 5px 4px 0 rgba(0, 0, 0, 0.15),
+    0 4px 16.6px 0 rgba(0, 0, 0, 0.08);
+  --box-shadow-2: 0 2px 7.3px 0 rgba(0, 0, 0, 0.04),
+    0 4px 30.3px 0 rgba(0, 0, 0, 0.08);
+  --box-shadow-mobile-plans: -22px 113px 32px 0 rgba(0, 0, 0, 0),
+    -14px 72px 29px 0 rgba(0, 0, 0, 0), -8px 41px 25px 0 rgba(0, 0, 0, 0.02),
+    -4px 18px 18px 0 rgba(0, 0, 0, 0.03), -1px 5px 10px 0 rgba(0, 0, 0, 0.03);
+
+  --extension-box-shadow: 0 3px 7px 0 #00000005, 0 13px 13px 0 #00000005,
+    0 29px 17px 0 #00000003, 0 51px 20px 0 #00000000, 0 80px 22px 0 #00000000;
+  --box-shadow-popup: -1px 4px 10px 0px #0000000d, -3px 18px 18px 0px #0000000a,
+    -7px 40px 24px 0px #00000008, -13px 71px 29px 0px #00000003,
+    -21px 111px 32px 0px #00000000;
+
+  --background-gradient-extension: linear-gradient(
+    180.48deg,
+    rgba(211, 112, 241, 0.08) -3.41%,
+    rgba(255, 84, 127, 0) 98.98%
+  );
+
+  --footer-gradient: linear-gradient(
+    0deg,
+    #ffffff 70.07%,
+    rgba(255, 255, 255, 0) 99.12%
+  );
+
+  --footer-gradient-history: linear-gradient(
+    0deg,
+    var(--transparent-background-1-tertiary) 0%,
+    var(--transparent-background-2-tertiary) 54.75%
+  );
+  --footer-gradient-tg-messages: linear-gradient(
+    0deg,
+    var(--transparent-background-1-tertiary) 10.78%,
+    var(--transparent-background-2-tertiary) 100%
+  );
+  --plans-gradient: linear-gradient(
+    263.31deg,
+    var(--brand-pink-300) 0%,
+    var(--brand-pink-500) 100%
+  );
+  --plans-popup-background-gradient: linear-gradient(
+    0deg,
+    rgba(231, 100, 191, 0.15) 0%,
+    rgba(231, 100, 191, 0) 100%
+  );
+  --box-shadow-popular-plan: 0 0 0 2px transparent,
+    inset 0 0 0 2px rgba(255, 255, 255, 0.25);
+}

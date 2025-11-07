@@ -1,0 +1,16 @@
+:root {
+  --font-primary: -apple-system, system-ui, Helvetica, Arial;
+  --current-gradient-color: '';
+  --content-width: 640px;
+  --desktop-sidebar-width: 220px;
+  --mobile-sidebar-width: 260px;
+  --desktop-image-width: 205px;
+  --desktop-image-height: 140px;
+  --mobile-image-width: 186px;
+  --mobile-image-height: 128px;
+  --textarea-height: 28px;
+  --full-textarea-height: 90px;
+  --mobile-header-height: 56px;
+  --desktop-header-height: 56px;
+  --improvements-block-width: 416px;
+}

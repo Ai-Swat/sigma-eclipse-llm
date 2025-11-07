@@ -12,9 +12,12 @@
   "app": {
     "windows": [
       {
-        "title": "sigma-shield",
-        "width": 800,
-        "height": 600
+        "title": "Sigma Shield LLM",
+        "width": 550,
+        "height": 600,
+        "minWidth": 450,
+        "minHeight": 600,
+        "resizable": true
       }
     ],
     "security": {
