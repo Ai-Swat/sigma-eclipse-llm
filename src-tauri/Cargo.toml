@@ -29,4 +29,5 @@ zip = { version = "0.6", default-features = false, features = ["deflate"] }
 dirs = "5.0"
 anyhow = "1.0"
 futures-util = "0.3"
+tauri-plugin-fs = "2"
 

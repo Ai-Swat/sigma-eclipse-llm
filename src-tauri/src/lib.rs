@@ -31,7 +31,7 @@ struct DownloadProgress {
 fn get_app_data_dir() -> Result<PathBuf> {
     let app_dir = dirs::data_dir()
         .ok_or_else(|| anyhow!("Failed to get data directory"))?
-        .join("sigma-shield");
+        .join("com.sigma-shield.app");
     
     fs::create_dir_all(&app_dir)?;
     Ok(app_dir)
@@ -550,6 +550,7 @@ async fn clear_all_data(state: State<'_, ServerState>) -> Result<String, String>
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .manage(ServerState {
