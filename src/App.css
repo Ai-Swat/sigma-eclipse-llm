@@ -47,12 +47,17 @@ h2 {
   gap: 8px;
   align-items: center;
   position: fixed;
-  top: 1.5rem;
-  right: 1.5rem;
+  top: 2.2rem;
+  right: 1.3rem;
   z-index: 100;
 }
 
-.settings-button,
+.settings-button-icon {
+  font-size: 23px;
+}
+.theme-toggle-icon {
+  margin-top: 4px;
+}
 .theme-toggle {
   min-width: 32px;
   width: 32px;
@@ -71,14 +76,12 @@ h2 {
   opacity: 0.6;
 }
 
-.settings-button:hover,
 .theme-toggle:hover {
   color: var(--text-neutral-primary);
   opacity: 1;
   transform: rotate(20deg);
 }
 
-.settings-button:active,
 .theme-toggle:active {
   transform: rotate(20deg) scale(0.9);
 }
@@ -269,6 +272,8 @@ h2 {
 
 .form-group {
   margin-bottom: 20px;
+  margin-top: 25px;
+
 }
 
 .form-group:last-child {

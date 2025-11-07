@@ -256,7 +256,7 @@ function App() {
   };
 
   const handleStartServer = async () => {
-    addLog(`Starting server on port ${port}...`);
+    addLog(`Starting LLM on port ${port}...`);
     try {
       const result = await invoke<string>("start_server", { port });
       toast.success(result);
@@ -318,14 +318,13 @@ function App() {
       <div className="header-section">
         <h1><img src={logo} alt="Shield" className="logo-icon" /> Sigma Shield LLM</h1>
         <div className="theme-toggle-container">
-          <button 
-            className="settings-button" 
+          <button className="theme-toggle settings-button"
             onClick={() => setIsSettingsOpen(!isSettingsOpen)}
             title="Settings"
           >
-            ⚙
+            <span className="settings-button-icon">⚙</span>
           </button>
-          <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
+          <button className="theme-toggle theme-toggle-icon" onClick={toggleTheme} title="Toggle theme">
             {theme === "dark" ? "○" : "●"}
           </button>
         </div>
@@ -385,7 +384,7 @@ function App() {
                 )}
 
                 <div className="form-group">
-                  <label>Model URL (zip with model.gguf and model.yaml):</label>
+                  <label>Model URL:</label>
                   <input
                     type="text"
                     value={modelUrl}
@@ -435,7 +434,7 @@ function App() {
               </div>
 
               <div className="section danger-section">
-                <h2>🗑️ Maintenance</h2>
+                <h2>Maintenance</h2>
                 <p className="warning-text">Clear downloaded files to free up space</p>
                 
                 <div className="button-group">
@@ -463,7 +462,7 @@ function App() {
           className="server-toggle-button"
           onClick={status.is_running ? handleStopServer : handleStartServer}
         >
-          {status.is_running ? "Stop Server" : "Start Server"}
+          {status.is_running ? "Stop" : "Start"}
         </button>
       </div>
 

@@ -448,7 +448,7 @@ async fn stop_server(state: State<'_, ServerState>) -> Result<String, String> {
             .map_err(|e| format!("Failed to wait for server: {}", e))?;
         Ok("Server stopped".to_string())
     } else {
-        Err("Server is not running".to_string())
+        Err("LLM is not running".to_string())
     }
 }
 
@@ -460,27 +460,27 @@ async fn get_server_status(state: State<'_, ServerState>) -> Result<ServerStatus
         match child.try_wait() {
             Ok(None) => Ok(ServerStatus {
                 is_running: true,
-                message: "Server is running".to_string(),
+                message: "LLM is running".to_string(),
             }),
             Ok(Some(status)) => {
                 *process_guard = None;
                 Ok(ServerStatus {
                     is_running: false,
-                    message: format!("Server exited with status: {}", status),
+                    message: format!("LLM exited with status: {}", status),
                 })
             }
             Err(e) => {
                 *process_guard = None;
                 Ok(ServerStatus {
                     is_running: false,
-                    message: format!("Failed to check server status: {}", e),
+                    message: format!("Failed to check LLM status: {}", e),
                 })
             }
         }
     } else {
         Ok(ServerStatus {
             is_running: false,
-            message: "Server is not running".to_string(),
+            message: "LLM is not running".to_string(),
         })
     }
 }
