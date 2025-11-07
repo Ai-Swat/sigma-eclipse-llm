@@ -21,7 +21,7 @@ function App() {
   const [store, setStore] = useState<Store | null>(null);
   const [theme, setTheme] = useState<"dark" | "white">("dark");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [modelUrl, setModelUrl] = useState("https://example.com/model.zip");
+  const [modelUrl, setModelUrl] = useState("https://releases.sigmabrowser.com/dev/secure-llm/model.zip");
   const [port, setPort] = useState(10345);
   const [status, setStatus] = useState<ServerStatus>({
     is_running: false,
@@ -281,23 +281,6 @@ function App() {
                     min="1024"
                     max="65535"
                   />
-                </div>
-
-                <div className="button-group">
-                  <button 
-                    onClick={handleStartServer}
-                    disabled={status.is_running}
-                    className="start-button"
-                  >
-                    Start Server
-                  </button>
-                  <button 
-                    onClick={handleStopServer}
-                    disabled={!status.is_running}
-                    className="stop-button"
-                  >
-                    Stop Server
-                  </button>
                 </div>
               </div>
             </div>
