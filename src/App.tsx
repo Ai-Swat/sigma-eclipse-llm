@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Store } from "@tauri-apps/plugin-store";
+import { Toaster, toast } from "sonner";
 import logo from "./assets/logo2.png";
 import "./App.css";
 
@@ -32,6 +33,7 @@ function App() {
   const [isDownloadingModel, setIsDownloadingModel] = useState(false);
   const [appDataPath, setAppDataPath] = useState("");
   const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null);
+  const [currentToastId, setCurrentToastId] = useState<string | number | null>(null);
 
   // Initialize store and load theme
   useEffect(() => {
@@ -98,12 +100,23 @@ function App() {
       const progress = event.payload;
       setDownloadProgress(progress);
       addLog(progress.message);
+      
+      // Update toast with progress
+      if (currentToastId) {
+        const progressText = progress.percentage !== null 
+          ? `${progress.percentage.toFixed(1)}%` 
+          : `${(progress.downloaded / 1_048_576).toFixed(2)} MB`;
+        
+        toast.loading(`${progress.message} - ${progressText}`, {
+          id: currentToastId,
+        });
+      }
     });
 
     return () => {
       unlisten.then((fn) => fn());
     };
-  }, []);
+  }, [currentToastId]);
 
   const addLog = (message: string) => {
     setLogs((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${message}`]);
@@ -112,34 +125,49 @@ function App() {
   const handleDownloadLlama = async () => {
     setIsDownloadingLlama(true);
     setDownloadProgress(null);
+    
+    const toastId = toast.loading("Starting llama.cpp download...");
+    setCurrentToastId(toastId);
     addLog("Starting llama.cpp download...");
+    
     try {
       const result = await invoke<string>("download_llama_cpp");
+      toast.success(result, { id: toastId });
       addLog(result);
     } catch (error) {
+      toast.error(`Error: ${error}`, { id: toastId });
       addLog(`Error: ${error}`);
     } finally {
       setIsDownloadingLlama(false);
       setDownloadProgress(null);
+      setCurrentToastId(null);
     }
   };
 
   const handleDownloadModel = async () => {
     if (!modelUrl.trim()) {
+      toast.error("Please enter a model URL");
       addLog("Error: Please enter a model URL");
       return;
     }
     setIsDownloadingModel(true);
     setDownloadProgress(null);
+    
+    const toastId = toast.loading(`Starting model download...`);
+    setCurrentToastId(toastId);
     addLog(`Starting model download from ${modelUrl}...`);
+    
     try {
       const result = await invoke<string>("download_model", { modelUrl });
+      toast.success(result, { id: toastId });
       addLog(result);
     } catch (error) {
+      toast.error(`Error: ${error}`, { id: toastId });
       addLog(`Error: ${error}`);
     } finally {
       setIsDownloadingModel(false);
       setDownloadProgress(null);
+      setCurrentToastId(null);
     }
   };
 
@@ -147,8 +175,10 @@ function App() {
     addLog(`Starting server on port ${port}...`);
     try {
       const result = await invoke<string>("start_server", { port });
+      toast.success(result);
       addLog(result);
     } catch (error) {
+      toast.error(`Error: ${error}`);
       addLog(`Error: ${error}`);
     }
   };
@@ -157,14 +187,50 @@ function App() {
     addLog("Stopping server...");
     try {
       const result = await invoke<string>("stop_server");
+      toast.success(result);
       addLog(result);
     } catch (error) {
+      toast.error(`Error: ${error}`);
+      addLog(`Error: ${error}`);
+    }
+  };
+
+  const handleClearAllData = async () => {
+    const toastId = toast.loading("Preparing to clear all data...");
+    
+    try {
+      // Stop server first if it's running
+      if (status.is_running) {
+        addLog("Stopping server before clearing data...");
+        toast.loading("Stopping server first...", { id: toastId });
+        
+        try {
+          await invoke<string>("stop_server");
+          addLog("Server stopped");
+        } catch (error) {
+          addLog(`Warning: Failed to stop server: ${error}`);
+        }
+        
+        // Wait a bit for server to fully stop
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+      // Now clear all data
+      addLog("Clearing all data...");
+      toast.loading("Clearing all data...", { id: toastId });
+      
+      const result = await invoke<string>("clear_all_data");
+      toast.success(result, { id: toastId });
+      addLog(result);
+    } catch (error) {
+      toast.error(`Error: ${error}`, { id: toastId });
       addLog(`Error: ${error}`);
     }
   };
 
   return (
     <main className="container">
+      <Toaster position="top-right" expand={true} richColors closeButton />
       <div className="header-section">
         <h1><img src={logo} alt="Shield" className="logo-icon" /> Sigma Shield LLM</h1>
         <div className="theme-toggle-container">
@@ -281,6 +347,21 @@ function App() {
                     min="1024"
                     max="65535"
                   />
+                </div>
+              </div>
+
+              <div className="section danger-section">
+                <h2>🗑️ Maintenance</h2>
+                <p className="warning-text">Clear downloaded files to free up space</p>
+                
+                <div className="button-group">
+              
+                  <button 
+                    onClick={handleClearAllData}
+                    className="danger-button-severe"
+                  >
+                    Clear All Data
+                  </button>
                 </div>
               </div>
             </div>
