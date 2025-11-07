@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "sigma-shield",
+  "productName": "Sigma Shield LLM",
   "version": "0.1.0",
   "identifier": "com.sigma-shield.llm",
   "build": {
