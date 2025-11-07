@@ -7,6 +7,7 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::io::AsyncWriteExt;
 use futures_util::StreamExt;
+use sysinfo::System;
 
 // Server state management
 struct ServerState {
@@ -493,6 +494,17 @@ fn get_app_data_path() -> Result<String, String> {
 }
 
 #[tauri::command]
+fn get_system_memory_gb() -> Result<u64, String> {
+    let mut sys = System::new_all();
+    sys.refresh_memory();
+    
+    let total_memory_bytes = sys.total_memory();
+    let total_memory_gb = total_memory_bytes / (1024 * 1024 * 1024);
+    
+    Ok(total_memory_gb)
+}
+
+#[tauri::command]
 async fn clear_binaries(state: State<'_, ServerState>) -> Result<String, String> {
     // Stop server if running
     let mut process_guard = state.process.lock().unwrap();
@@ -563,6 +575,7 @@ pub fn run() {
             stop_server,
             get_server_status,
             get_app_data_path,
+            get_system_memory_gb,
             clear_binaries,
             clear_models,
             clear_all_data,

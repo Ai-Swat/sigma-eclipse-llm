@@ -23,7 +23,7 @@ function App() {
   const [store, setStore] = useState<Store | null>(null);
   const [theme, setTheme] = useState<"dark" | "white">("dark");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [modelUrl, setModelUrl] = useState("https://releases.sigmabrowser.com/dev/secure-llm/model.zip");
+  const [modelUrl, setModelUrl] = useState("");
   const [port, setPort] = useState(10345);
   const [status, setStatus] = useState<ServerStatus>({
     is_running: false,
@@ -57,6 +57,34 @@ function App() {
     };
     initStore();
   }, []);
+
+  // Auto-detect and set model URL based on system memory
+  useEffect(() => {
+    
+    const detectModelUrl = async () => {
+      
+      try {
+        const memoryGb = await invoke<number>("get_system_memory_gb");
+        console.log(`System memory detected: ${memoryGb} GB`);
+        
+        // If memory is less than 60GB, use the smaller model
+        if (memoryGb < 16) {
+          setModelUrl("https://releases.sigmabrowser.com/dev/secure-llm/model_s.zip");
+          addLog(`Auto-selected smaller model (RAM: ${memoryGb} GB < 16 GB)`);
+        } else {
+          setModelUrl("https://releases.sigmabrowser.com/dev/secure-llm/model.zip");
+          addLog(`Auto-selected full model (RAM: ${memoryGb} GB >= 16 GB)`);
+        }
+      } catch (error) {
+        console.error("Failed to detect system memory:", error);
+        // Fallback to smaller model if detection fails
+        setModelUrl("https://releases.sigmabrowser.com/dev/secure-llm/model_s.zip");
+        addLog("Failed to detect RAM, using smaller model as fallback");
+      }
+    };
+    
+    detectModelUrl();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Toggle theme and save to store
   const toggleTheme = async () => {
@@ -97,6 +125,9 @@ function App() {
 
   // Check and auto-download required files on startup
   useEffect(() => {
+    // Don't run if modelUrl is not set yet
+    if (!modelUrl) return;
+    
     let hasRun = false;
     
     const checkAndDownloadFiles = async () => {
@@ -173,10 +204,10 @@ function App() {
       }
     };
     
-    // Small delay to ensure other useEffects have run
-    const timer = setTimeout(checkAndDownloadFiles, 1000);
+    // Small delay to ensure file system is ready
+    const timer = setTimeout(checkAndDownloadFiles, 500);
     return () => clearTimeout(timer);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [modelUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Listen for download progress events
   useEffect(() => {
@@ -314,7 +345,7 @@ function App() {
 
   return (
     <main className="container">
-      <Toaster position="top-right" expand={true} richColors closeButton />
+      <Toaster position="top-right" expand={true} richColors closeButton dir="ltr" />
       <div className="header-section">
         <h1><img src={logo} alt="Shield" className="logo-icon" /> Sigma Shield LLM</h1>
         <div className="theme-toggle-container">
@@ -467,7 +498,7 @@ function App() {
       </div>
 
       <div className="section">
-        <h2>Logs</h2>
+        <h2 className="logs-header">Logs</h2>
         <div className="logs">
           {logs.map((log, index) => (
             <div key={index} className="log-entry">{log}</div>
