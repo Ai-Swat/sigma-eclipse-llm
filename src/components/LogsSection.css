@@ -10,11 +10,6 @@
   line-height: 20px;
 }
 
-.logs-header {
-  margin-bottom: 15px;
-  margin-top: 5px;
-}
-
 .log-entry {
   padding: 4px 0;
   color: var(--text-neutral-primary);

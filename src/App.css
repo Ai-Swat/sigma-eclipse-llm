@@ -54,7 +54,6 @@ h2 {
 
 button {
   flex: 1;
-  min-width: 150px;
   padding: 12px 24px;
   font-size: 16px;
   line-height: 24px;

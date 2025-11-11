@@ -1,74 +1,29 @@
 .status-panel {
-  border-radius: var(--custom-border-radius);
-  padding: 24px;
-  text-align: center;
-  align-items: center;
-  justify-content: flex-start;
-  width: 100%;
-  max-width: 640px;
-  background-color: var(--background-brand-primary-subdued);
+  /*width: 100%;*/
+  /*max-width: 640px;*/
+  /*padding: 24px;*/
+  /*border-radius: var(--custom-border-radius);*/
+  /*background-color: var(--background-brand-primary-subdued);*/
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 16px;
   position: relative;
 }
 
-.status-indicator {
+.status-text-wrapper {
   display: flex;
+  flex-direction: column;
+  gap: 2px;
   align-items: center;
-  justify-content: center;
-  gap: 12px;
+}
+
+.status-indicator {
   font-size: 20px;
   font-weight: 600;
   color: var(--text-neutral-primary);
 }
 
-.status-dot {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  animation: pulse 2s ease-in-out infinite;
-}
-
-.status-indicator.running .status-dot {
-  background: var(--green-dark-main);
-  box-shadow: 0 0 12px var(--green-dark-main);
-}
-
-.status-indicator.stopped .status-dot {
-  background: var(--red-dark-main);
-  box-shadow: 0 0 12px var(--red-dark-main);
-  animation: none;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
 .status-message {
   color: var(--text-neutral-secondary);
-}
-
-.server-toggle-button {
-  min-width: 200px;
-  max-height: 48px;
-  padding: 12px 32px;
-  font-weight: 600;
-  margin: 0 auto;
-  display: block;
-}
-
-.server-toggle-button:hover {
-  background: var(--background-neutral-global-tertiary);
-  border-color: var(--stroke-neutral-alfa-primary);
-}
-
-.server-toggle-button:active {
-  opacity: 0.8;
 }
