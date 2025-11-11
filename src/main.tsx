@@ -33,7 +33,7 @@ import { resolveResource } from "@tauri-apps/api/path";
             await invoke("stop_server");
           } catch (error) {
             // Ignore errors if server is not running
-            console.log("Server stop result:", error);
+            console.error("Server stop result:", error);
           }
           exit(0);
         },
@@ -63,6 +63,8 @@ import { resolveResource } from "@tauri-apps/api/path";
     menu,
     menuOnLeftClick: true,
   };
+
+  // eslint-disable-next-line no-console
   console.log(options);
   const trayIcon = await TrayIcon.new(options);
   trayIcon.setIconAsTemplate(true);

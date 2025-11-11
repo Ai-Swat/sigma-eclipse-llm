@@ -1,4 +1,5 @@
 import { ServerStatus } from "../types";
+import "./StatusPanel.css";
 
 interface StatusPanelProps {
   status: ServerStatus;
@@ -15,7 +16,7 @@ export const StatusPanel = ({ status, onStartServer, onStopServer }: StatusPanel
       </div>
       <p className="status-message">{status.message}</p>
       <button
-        className="server-toggle-button"
+        className="server-toggle-button primary-button"
         onClick={status.is_running ? onStopServer : onStartServer}
       >
         {status.is_running ? "Stop" : "Start"}

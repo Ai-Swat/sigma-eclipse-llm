@@ -1,4 +1,5 @@
 import { DownloadProgress } from "../types";
+import "./ProgressBar.css";
 
 interface ProgressBarProps {
   downloadProgress: DownloadProgress | null;

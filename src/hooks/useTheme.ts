@@ -28,8 +28,9 @@ export const useTheme = () => {
   }, []);
 
   // Toggle theme and save to store
-  const toggleTheme = async () => {
-    const newTheme = theme === "dark" ? "white" : "dark";
+  const toggleTheme = async (newTheme: "dark" | "white") => {
+    if (newTheme === theme) return;
+
     setTheme(newTheme);
     document.documentElement.className = `theme-${newTheme}`;
 

@@ -1,5 +1,7 @@
 import { DownloadProgress, ServerStatus } from "../types";
 import { ProgressBar } from "./ProgressBar";
+import CloseIcon from "../icons/x-close.svg?react";
+import "./SettingsPanel.css";
 
 interface SettingsPanelProps {
   isOpen: boolean;
@@ -20,6 +22,7 @@ interface SettingsPanelProps {
   onCtxSizeChange: (ctxSize: number) => void;
   onGpuLayersChange: (gpuLayers: number) => void;
   onClearAllData: () => void;
+  isProduction: boolean;
 }
 
 export const SettingsPanel = ({
@@ -32,57 +35,69 @@ export const SettingsPanel = ({
   isDownloadingLlama,
   isDownloadingModel,
   downloadProgress,
-  status,
   onClose,
   onDownloadLlama,
   onDownloadModel,
-  onModelUrlChange,
   onPortChange,
   onCtxSizeChange,
   onGpuLayersChange,
   onClearAllData,
+  isProduction,
 }: SettingsPanelProps) => {
-  console.log(status);
   if (!isOpen) return null;
 
   return (
     <div className="settings-overlay">
       <div className="settings-panel">
         <div className="settings-header">
-          <h2>⚙️ Settings</h2>
-          <button className="close-button" onClick={onClose} title="Close">
-            ✕
+          <h2>Settings</h2>
+          <button className="transparent-hover-button close-button" onClick={onClose} title="Close">
+            <CloseIcon width={20} height={20} />
           </button>
         </div>
 
         <div className="settings-content">
           <div className="section">
             <h2>Setup</h2>
-            <div className="form-group">
-              <label>App Data Directory:</label>
-              <input type="text" value={appDataPath} disabled className="readonly-input" />
-            </div>
+            {!isProduction && (
+              <>
+                <div className="form-group">
+                  <label>App Data Directory:</label>
+                  <input type="text" value={appDataPath} disabled className="readonly-input" />
+                </div>
 
-            <div className="button-group">
-              <button onClick={onDownloadLlama} disabled={isDownloadingLlama}>
-                {isDownloadingLlama ? "Downloading..." : "Download llama.cpp"}
-              </button>
-            </div>
+                <div className="button-group">
+                  <button
+                    className="primary-button"
+                    onClick={onDownloadLlama}
+                    disabled={isDownloadingLlama}
+                  >
+                    {isDownloadingLlama ? "Downloading..." : "Download llama.cpp"}
+                  </button>
+                </div>
 
-            {isDownloadingLlama && <ProgressBar downloadProgress={downloadProgress} />}
+                {isDownloadingLlama && <ProgressBar downloadProgress={downloadProgress} />}
+              </>
+            )}
 
             <div className="form-group">
               <label>Model URL:</label>
               <input
                 type="text"
                 value={modelUrl}
-                onChange={(e) => onModelUrlChange(e.target.value)}
+                // onChange={(e) => onModelUrlChange(e.target.value)}
                 placeholder="https://example.com/model.zip"
+                disabled
+                className="readonly-input"
               />
             </div>
 
             <div className="button-group">
-              <button onClick={onDownloadModel} disabled={isDownloadingModel || !modelUrl.trim()}>
+              <button
+                className="primary-button"
+                onClick={onDownloadModel}
+                disabled={isDownloadingModel || !modelUrl.trim()}
+              >
                 {isDownloadingModel ? "Downloading..." : "Download Model"}
               </button>
             </div>

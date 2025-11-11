@@ -1,7 +1,13 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Toaster, toast } from "sonner";
-import { HeaderSection, SettingsPanel, StatusPanel, LogsSection } from "./components";
+import {
+  HeaderSection,
+  SettingsPanel,
+  StatusPanel,
+  LogsSection,
+  ThemeSwitcher,
+} from "./components";
 import { useTheme, useServerStatus, useLogs, useDownloadProgress, useAutoDownload } from "./hooks";
 import "./App.css";
 
@@ -9,7 +15,8 @@ function App() {
   const { theme, toggleTheme } = useTheme();
   const status = useServerStatus();
   const { logs, addLog } = useLogs();
-  
+  const isProduction = import.meta.env.PROD;
+
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [modelUrl, setModelUrl] = useState("");
   const [port, setPort] = useState(() => {
@@ -25,10 +32,17 @@ function App() {
     return saved ? parseInt(saved) : 41;
   });
   const [appDataPath, setAppDataPath] = useState("");
-  
+
   const { downloadProgress, setCurrentToastId, setDownloadProgress } = useDownloadProgress(addLog);
-  
-  const { isDownloadingLlama, isDownloadingModel, setIsDownloadingLlama, setIsDownloadingModel } = useAutoDownload({
+
+  const {
+    isDownloadingLlama,
+    isDownloadingModel,
+    isModelAlreadyDownloaded,
+    isLlamaAlreadyDownloaded,
+    setIsDownloadingLlama,
+    setIsDownloadingModel,
+  } = useAutoDownload({
     modelUrl,
     addLog,
     setCurrentToastId,
@@ -40,8 +54,9 @@ function App() {
     const detectSystemSettings = async () => {
       try {
         const memoryGb = await invoke<number>("get_system_memory_gb");
+        // eslint-disable-next-line no-console
         console.log(`System memory detected: ${memoryGb} GB`);
-        
+
         // Set model URL based on memory
         if (memoryGb < 16) {
           setModelUrl("https://releases.sigmabrowser.com/dev/secure-llm/model_s.zip");
@@ -50,7 +65,7 @@ function App() {
           setModelUrl("https://releases.sigmabrowser.com/dev/secure-llm/model.zip");
           addLog(`Auto-selected full model (RAM: ${memoryGb} GB >= 16 GB)`);
         }
-        
+
         // Set context size based on memory (only if not manually set by user)
         const savedCtxSize = localStorage.getItem("ctxSize");
         if (!savedCtxSize) {
@@ -73,7 +88,7 @@ function App() {
         // Fallback to smaller model if detection fails
         setModelUrl("https://releases.sigmabrowser.com/dev/secure-llm/model_s.zip");
         addLog("Failed to detect RAM, using smaller model as fallback");
-        
+
         // Set fallback context size if not set
         const savedCtxSize = localStorage.getItem("ctxSize");
         if (!savedCtxSize) {
@@ -83,7 +98,7 @@ function App() {
         }
       }
     };
-    
+
     detectSystemSettings();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -95,13 +110,17 @@ function App() {
   }, []);
 
   const handleDownloadLlama = async () => {
+    if (isLlamaAlreadyDownloaded) {
+      toast.error("Llama already downloaded");
+      return;
+    }
     setIsDownloadingLlama(true);
     setDownloadProgress(null);
-    
+
     const toastId = toast.loading("Starting llama.cpp download...");
     setCurrentToastId(toastId);
     addLog("Starting llama.cpp download...");
-    
+
     try {
       const result = await invoke<string>("download_llama_cpp");
       toast.success(result, { id: toastId });
@@ -117,6 +136,11 @@ function App() {
   };
 
   const handleDownloadModel = async () => {
+    if (isModelAlreadyDownloaded) {
+      toast.error("Model already downloaded");
+      return;
+    }
+
     if (!modelUrl.trim()) {
       toast.error("Please enter a model URL");
       addLog("Error: Please enter a model URL");
@@ -124,11 +148,11 @@ function App() {
     }
     setIsDownloadingModel(true);
     setDownloadProgress(null);
-    
+
     const toastId = toast.loading(`Starting model download...`);
     setCurrentToastId(toastId);
     addLog(`Starting model download from ${modelUrl}...`);
-    
+
     try {
       const result = await invoke<string>("download_model", { modelUrl });
       toast.success(result, { id: toastId });
@@ -146,10 +170,10 @@ function App() {
   const handleStartServer = async () => {
     addLog(`Starting LLM on port ${port} (ctx: ${ctxSize}, gpu layers: ${gpuLayers})...`);
     try {
-      const result = await invoke<string>("start_server", { 
-        port, 
-        ctxSize, 
-        gpuLayers 
+      const result = await invoke<string>("start_server", {
+        port,
+        ctxSize,
+        gpuLayers,
       });
       toast.success(result);
       addLog(result);
@@ -188,28 +212,28 @@ function App() {
 
   const handleClearAllData = async () => {
     const toastId = toast.loading("Preparing to clear all data...");
-    
+
     try {
       // Stop server first if it's running
       if (status.is_running) {
         addLog("Stopping server before clearing data...");
         toast.loading("Stopping server first...", { id: toastId });
-        
+
         try {
           await invoke<string>("stop_server");
           addLog("Server stopped");
         } catch (error) {
           addLog(`Warning: Failed to stop server: ${error}`);
         }
-        
+
         // Wait a bit for server to fully stop
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
-      
+
       // Now clear all data
       addLog("Clearing all data...");
       toast.loading("Clearing all data...", { id: toastId });
-      
+
       const result = await invoke<string>("clear_all_data");
       toast.success(result, { id: toastId });
       addLog(result);
@@ -221,14 +245,7 @@ function App() {
 
   return (
     <main className="container">
-      <Toaster position="top-right" expand={true} richColors closeButton dir="ltr" />
-      
-      <HeaderSection 
-        theme={theme}
-        isSettingsOpen={isSettingsOpen}
-        onToggleTheme={toggleTheme}
-        onToggleSettings={() => setIsSettingsOpen(!isSettingsOpen)}
-      />
+      <HeaderSection onToggleSettings={() => setIsSettingsOpen(!isSettingsOpen)} />
 
       <SettingsPanel
         isOpen={isSettingsOpen}
@@ -249,15 +266,22 @@ function App() {
         onCtxSizeChange={handleCtxSizeChange}
         onGpuLayersChange={handleGpuLayersChange}
         onClearAllData={handleClearAllData}
+        isProduction={isProduction}
       />
-      
-      <StatusPanel 
+
+      <StatusPanel
         status={status}
         onStartServer={handleStartServer}
         onStopServer={handleStopServer}
       />
 
-      <LogsSection logs={logs} />
+      {!isProduction && <LogsSection logs={logs} />}
+
+      <div className="footer-section">
+        <ThemeSwitcher theme={theme} onToggleTheme={toggleTheme} />
+      </div>
+
+      <Toaster position="bottom-right" expand={true} richColors closeButton dir="ltr" />
     </main>
   );
 }

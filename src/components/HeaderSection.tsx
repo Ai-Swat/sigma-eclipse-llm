@@ -1,39 +1,23 @@
 import logo from "../assets/logo2.png";
+import SettingsIcon from "../icons/settings-01.svg?react";
+import "./HeaderSection.css";
 
 interface HeaderSectionProps {
-  theme: "dark" | "white";
-  isSettingsOpen: boolean;
-  onToggleTheme: () => void;
   onToggleSettings: () => void;
 }
 
-export const HeaderSection = ({
-  theme,
-  isSettingsOpen,
-  onToggleTheme,
-  onToggleSettings,
-}: HeaderSectionProps) => {
-  console.log(isSettingsOpen);
+export const HeaderSection = ({ onToggleSettings }: HeaderSectionProps) => {
   return (
     <div className="header-section">
       <h1>
         <img src={logo} alt="Shield" className="logo-icon" />
         Sigma Shield LLM
       </h1>
-      <div className="theme-toggle-container">
-        <button
-          className="theme-toggle settings-button"
-          onClick={onToggleSettings}
-          title="Settings"
-        >
-          <span className="settings-button-icon">⚙</span>
-        </button>
-        <button
-          className="theme-toggle theme-toggle-icon"
-          onClick={onToggleTheme}
-          title="Toggle theme"
-        >
-          {theme === "dark" ? "○" : "●"}
+      <div className="header-buttons-wrapper">
+        <button className="transparent-hover-button" onClick={onToggleSettings} title="Settings">
+          <span className="settings-button-icon">
+            <SettingsIcon width={20} height={20} />
+          </span>
         </button>
       </div>
     </div>

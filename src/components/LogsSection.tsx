@@ -1,3 +1,5 @@
+import "./LogsSection.css";
+
 interface LogsSectionProps {
   logs: string[];
 }

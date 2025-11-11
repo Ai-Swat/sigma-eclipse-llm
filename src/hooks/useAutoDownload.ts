@@ -18,6 +18,8 @@ export const useAutoDownload = ({
 }: UseAutoDownloadProps) => {
   const [isDownloadingLlama, setIsDownloadingLlama] = useState(false);
   const [isDownloadingModel, setIsDownloadingModel] = useState(false);
+  const [isModelAlreadyDownloaded, setIsModelAlreadyDownloaded] = useState(false);
+  const [isLlamaAlreadyDownloaded, setIsLlamaAlreadyDownloaded] = useState(false);
 
   // Check and auto-download required files on startup
   useEffect(() => {
@@ -37,9 +39,17 @@ export const useAutoDownload = ({
         const llamaBinaryPath = `./bin/llama-server`;
         const llamaExists = await exists(llamaBinaryPath, { baseDir: BaseDirectory.AppData });
 
+        if (llamaExists) {
+          setIsLlamaAlreadyDownloaded(true);
+        }
+
         // Check if model exists
         const modelPath = `./models/model.gguf`;
         const modelExists = await exists(modelPath, { baseDir: BaseDirectory.AppData });
+
+        if (modelExists) {
+          setIsModelAlreadyDownloaded(true);
+        }
 
         // Auto-download llama.cpp if missing
         if (!llamaExists && !isDownloadingLlama) {
@@ -104,5 +114,12 @@ export const useAutoDownload = ({
     return () => clearTimeout(timer);
   }, [modelUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { isDownloadingLlama, isDownloadingModel, setIsDownloadingLlama, setIsDownloadingModel };
+  return {
+    isDownloadingLlama,
+    isDownloadingModel,
+    isModelAlreadyDownloaded,
+    isLlamaAlreadyDownloaded,
+    setIsDownloadingLlama,
+    setIsDownloadingModel,
+  };
 };

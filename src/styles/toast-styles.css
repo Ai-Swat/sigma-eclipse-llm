@@ -1,0 +1,44 @@
+/* Sonner Toast Styling */
+[data-sonner-toaster] {
+  font-family: var(--font-primary) !important;
+}
+
+[data-sonner-toast] {
+  background: var(--background-neutral-global-secondary) !important;
+  border: 1px solid var(--background-neutral-global-tertiary) !important;
+  color: var(--text-neutral-primary) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15) !important;
+}
+
+[data-sonner-toast][data-type="success"] {
+  background: var(--background-success-primary) !important;
+  border-color: var(--background-success-primary-hover) !important;
+  color: var(--text-neutral-primary-on-color) !important;
+}
+
+[data-sonner-toast][data-type="error"] {
+  background: var(--background-error-primary) !important;
+  border-color: var(--background-error-primary-hover) !important;
+  color: var(--text-neutral-primary-on-color) !important;
+}
+
+[data-sonner-toast][data-type="loading"] {
+  background: var(--background-brand-primary) !important;
+  border-color: var(--background-brand-primary-hover) !important;
+  color: var(--text-neutral-primary-on-color) !important;
+}
+
+[data-close-button] {
+  background: transparent !important;
+  border: none !important;
+  color: inherit !important;
+  opacity: 0.7 !important;
+  position: absolute !important;
+  right: 0 !important;
+  top: 8px !important;
+  left: auto !important;
+}
+
+[data-close-button]:hover {
+  opacity: 1 !important;
+}

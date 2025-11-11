@@ -20,12 +20,16 @@ module.exports = {
     "import/resolver": {
       typescript: {},
       node: {
-        extensions: [".js", ".jsx", ".ts", ".tsx"],
-      },
+        extensions: [".js", ".jsx", ".ts", ".tsx", ".svg"]
+      }
     },
   },
   rules: {
     "react/react-in-jsx-scope": "off",
     "@typescript-eslint/no-explicit-any": "off",
+    "no-console": [
+      "warn",
+      { allow: ["warn", "error"] } // можно разрешить только warn/error
+    ],
   },
 };
