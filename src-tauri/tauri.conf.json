@@ -34,10 +34,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": [
-      "icons/icon.ico",
-      "icons/icon.icns"
-    ],
+    "resources": ["icons/icon.ico", "icons/icon.icns"],
     "copyright": "",
     "category": "public.app-category.utilities",
     "shortDescription": "",

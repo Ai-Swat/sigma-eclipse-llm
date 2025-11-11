@@ -9,4 +9,3 @@ export interface DownloadProgress {
   percentage: number | null;
   message: string;
 }
-

@@ -50,40 +50,26 @@ export const SettingsPanel = ({
       <div className="settings-panel">
         <div className="settings-header">
           <h2>⚙️ Settings</h2>
-          <button 
-            className="close-button" 
-            onClick={onClose}
-            title="Close"
-          >
+          <button className="close-button" onClick={onClose} title="Close">
             ✕
           </button>
         </div>
-        
+
         <div className="settings-content">
           <div className="section">
             <h2>Setup</h2>
             <div className="form-group">
               <label>App Data Directory:</label>
-              <input 
-                type="text" 
-                value={appDataPath} 
-                disabled 
-                className="readonly-input"
-              />
+              <input type="text" value={appDataPath} disabled className="readonly-input" />
             </div>
-            
+
             <div className="button-group">
-              <button 
-                onClick={onDownloadLlama}
-                disabled={isDownloadingLlama}
-              >
+              <button onClick={onDownloadLlama} disabled={isDownloadingLlama}>
                 {isDownloadingLlama ? "Downloading..." : "Download llama.cpp"}
               </button>
             </div>
 
-            {isDownloadingLlama && (
-              <ProgressBar downloadProgress={downloadProgress} />
-            )}
+            {isDownloadingLlama && <ProgressBar downloadProgress={downloadProgress} />}
 
             <div className="form-group">
               <label>Model URL:</label>
@@ -96,17 +82,12 @@ export const SettingsPanel = ({
             </div>
 
             <div className="button-group">
-              <button 
-                onClick={onDownloadModel}
-                disabled={isDownloadingModel || !modelUrl.trim()}
-              >
+              <button onClick={onDownloadModel} disabled={isDownloadingModel || !modelUrl.trim()}>
                 {isDownloadingModel ? "Downloading..." : "Download Model"}
               </button>
             </div>
 
-            {isDownloadingModel && (
-              <ProgressBar downloadProgress={downloadProgress} />
-            )}
+            {isDownloadingModel && <ProgressBar downloadProgress={downloadProgress} />}
           </div>
 
           <div className="section">
@@ -121,7 +102,7 @@ export const SettingsPanel = ({
                 max="65535"
               />
             </div>
-            
+
             <div className="form-group">
               <label>Context Size:</label>
               <input
@@ -134,7 +115,7 @@ export const SettingsPanel = ({
               />
               <small className="help-text">Range: 6,000 - 100,000 tokens</small>
             </div>
-            
+
             <div className="form-group">
               <label>GPU Layers:</label>
               <input
@@ -151,12 +132,9 @@ export const SettingsPanel = ({
           <div className="section danger-section">
             <h2>Maintenance</h2>
             <p className="warning-text">Clear downloaded files to free up space</p>
-            
+
             <div className="button-group">
-              <button 
-                onClick={onClearAllData}
-                className="danger-button-severe"
-              >
+              <button onClick={onClearAllData} className="danger-button-severe">
                 Clear All Data
               </button>
             </div>
@@ -166,4 +144,3 @@ export const SettingsPanel = ({
     </div>
   );
 };
-

@@ -24,4 +24,3 @@ export const useServerStatus = () => {
 
   return status;
 };
-

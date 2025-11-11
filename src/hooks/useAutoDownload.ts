@@ -10,11 +10,11 @@ interface UseAutoDownloadProps {
   setDownloadProgress: (progress: any) => void;
 }
 
-export const useAutoDownload = ({ 
-  modelUrl, 
-  addLog, 
-  setCurrentToastId, 
-  setDownloadProgress 
+export const useAutoDownload = ({
+  modelUrl,
+  addLog,
+  setCurrentToastId,
+  setDownloadProgress,
 }: UseAutoDownloadProps) => {
   const [isDownloadingLlama, setIsDownloadingLlama] = useState(false);
   const [isDownloadingModel, setIsDownloadingModel] = useState(false);
@@ -23,34 +23,34 @@ export const useAutoDownload = ({
   useEffect(() => {
     // Don't run if modelUrl is not set yet
     if (!modelUrl) return;
-    
+
     let hasRun = false;
-    
+
     const checkAndDownloadFiles = async () => {
       if (hasRun) return; // Prevent double execution
       hasRun = true;
-      
+
       try {
         let wasSomeDownloads = false;
-        
+
         // Check if llama-server binary exists
         const llamaBinaryPath = `./bin/llama-server`;
         const llamaExists = await exists(llamaBinaryPath, { baseDir: BaseDirectory.AppData });
-        
+
         // Check if model exists
         const modelPath = `./models/model.gguf`;
         const modelExists = await exists(modelPath, { baseDir: BaseDirectory.AppData });
-        
+
         // Auto-download llama.cpp if missing
         if (!llamaExists && !isDownloadingLlama) {
           wasSomeDownloads = true;
           addLog("llama.cpp not found, downloading automatically...");
           setIsDownloadingLlama(true);
           setDownloadProgress(null);
-          
+
           const toastId = toast.loading("Starting llama.cpp download...");
           setCurrentToastId(toastId);
-          
+
           try {
             const result = await invoke<string>("download_llama_cpp");
             toast.success(result, { id: toastId });
@@ -64,17 +64,17 @@ export const useAutoDownload = ({
             setCurrentToastId(null);
           }
         }
-        
+
         // Auto-download model if missing and we have a URL
         if (!modelExists && modelUrl.trim() && !isDownloadingModel) {
           wasSomeDownloads = true;
           addLog("Model not found, downloading automatically...");
           setIsDownloadingModel(true);
           setDownloadProgress(null);
-          
+
           const toastId = toast.loading(`Starting model download...`);
           setCurrentToastId(toastId);
-          
+
           try {
             const result = await invoke<string>("download_model", { modelUrl });
             toast.success(result, { id: toastId });
@@ -88,7 +88,7 @@ export const useAutoDownload = ({
             setCurrentToastId(null);
           }
         }
-        
+
         if (llamaExists && modelExists && wasSomeDownloads) {
           addLog("All required files are present");
           toast.success("System ready!");
@@ -98,7 +98,7 @@ export const useAutoDownload = ({
         addLog(`Failed to check files: ${error}`);
       }
     };
-    
+
     // Small delay to ensure file system is ready
     const timer = setTimeout(checkAndDownloadFiles, 500);
     return () => clearTimeout(timer);
@@ -106,4 +106,3 @@ export const useAutoDownload = ({
 
   return { isDownloadingLlama, isDownloadingModel, setIsDownloadingLlama, setIsDownloadingModel };
 };
-

@@ -1,7 +1,3 @@
-@import url('./variables.css');
-@import url('./variables-palette.css');
-@import url('./variables-custom.css');
-@import url('./globals.css');
-@import url('./utils.css');
-@import url('./code-styles-block.css');
-@import url('./transition-animations.css');
+@import url("./variables.css");
+@import url("./variables-palette.css");
+@import url("./globals.css");

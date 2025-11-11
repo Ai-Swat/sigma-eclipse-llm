@@ -11,7 +11,7 @@ export const useTheme = () => {
       try {
         const loadedStore = await Store.load("settings.json");
         setStore(loadedStore);
-        
+
         const savedTheme = await loadedStore.get<string>("theme");
         if (savedTheme === "dark" || savedTheme === "white") {
           setTheme(savedTheme);
@@ -32,7 +32,7 @@ export const useTheme = () => {
     const newTheme = theme === "dark" ? "white" : "dark";
     setTheme(newTheme);
     document.documentElement.className = `theme-${newTheme}`;
-    
+
     if (store) {
       try {
         await store.set("theme", newTheme);
@@ -45,4 +45,3 @@ export const useTheme = () => {
 
   return { theme, toggleTheme };
 };
-

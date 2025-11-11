@@ -14,7 +14,7 @@ export const StatusPanel = ({ status, onStartServer, onStopServer }: StatusPanel
         <span>{status.is_running ? "Running" : "Stopped"}</span>
       </div>
       <p className="status-message">{status.message}</p>
-      <button 
+      <button
         className="server-toggle-button"
         onClick={status.is_running ? onStopServer : onStartServer}
       >
@@ -23,4 +23,3 @@ export const StatusPanel = ({ status, onStartServer, onStopServer }: StatusPanel
     </div>
   );
 };
-

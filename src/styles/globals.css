@@ -52,25 +52,25 @@ body {
   /* Custom scrollbar styles */
   scrollbar-width: thin;
   scrollbar-color: var(--stroke-neutral-alfa-tertiary) transparent;
+}
 
-  &::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
 
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
 
-  &::-webkit-scrollbar-thumb {
-    background: var(--stroke-neutral-alfa-tertiary);
-    border-radius: 4px;
-    cursor: pointer;
-  }
+*::-webkit-scrollbar-thumb {
+  background: var(--stroke-neutral-alfa-tertiary);
+  border-radius: 4px;
+  cursor: pointer;
+}
 
-  &::-webkit-scrollbar-thumb:hover {
-    background: var(--stroke-neutral-alfa-primary);
-  }
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--stroke-neutral-alfa-primary);
 }
 
 #root {
@@ -99,10 +99,10 @@ a {
   text-decoration: none;
 }
 
-input[type='search']::-webkit-search-decoration,
-input[type='search']::-webkit-search-cancel-button,
-input[type='search']::-webkit-search-results-button,
-input[type='search']::-webkit-search-results-decoration {
+input[type="search"]::-webkit-search-decoration,
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-results-button,
+input[type="search"]::-webkit-search-results-decoration {
   display: none;
 }
 
@@ -144,140 +144,4 @@ h1 {
   100% {
     opacity: 0;
   }
-}
-
-.show-mobile {
-  display: none;
-}
-
-@media (--vp-mobile) {
-  .hide-mobile {
-    display: none;
-  }
-
-  .show-mobile {
-    display: block;
-  }
-}
-
-.customScrollBarVertical {
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-gutter: stable;
-
-  @media (--only-desktop) {
-    -ms-overflow-style: auto !important;
-    scrollbar-width: auto !important;
-  }
-
-  &::-webkit-scrollbar {
-    display: initial !important;
-    width: 8px !important;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background-color: var(--stroke-neutral-alfa-tertiary);
-    border-radius: 4px;
-    cursor: pointer;
-  }
-
-  &::-webkit-scrollbar-track {
-    background-color: transparent;
-  }
-}
-
-.customScrollBarHorizontal {
-  overflow-x: auto;
-  -ms-overflow-style: auto !important;
-  scrollbar-width: auto !important;
-  scrollbar-gutter: stable;
-
-  @media (--vp-mobile) {
-    padding-bottom: 4px;
-  }
-
-  &::-webkit-scrollbar-track {
-    border-radius: 10px;
-    background-color: var(--background-neutral-global-tertiary);
-  }
-
-  &::-webkit-scrollbar {
-    background-color: var(--background-neutral-global-tertiary);
-    height: 4px !important;
-    display: initial !important;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    border-radius: 4px;
-    background: var(--stroke-neutral-alfa-tertiary);
-    cursor: pointer;
-  }
-}
-
-.banner-photo-provider > div:nth-child(2) {
-  background: transparent;
-}
-
-.banner-photo-provider > div:nth-child(2) > div:nth-child(1) {
-  opacity: 0;
-}
-
-.photo-wrap-style {
-  transition: all 0.4s ease-out;
-}
-
-.photo-wrap-style > div:nth-child(1) > img {
-  transform: scale(0.9);
-}
-
-/* react-hot-toast styles */
-.go2534082608 {
-  background: var(--background-error-primary) !important;
-}
-
-.go2072408551 {
-  @media (--vp-mobile) {
-    width: 100%;
-  }
-}
-
-.go2344853693 {
-  background: var(--background-success-primary) !important;
-}
-
-.toaster-container {
-  top: 28px;
-  right: 16px;
-  z-index: 999999 !important;
-
-  @media (--vp-mobile) {
-    top: 16px;
-  }
-}
-
-.PhotoView-Portal {
-  z-index: 20000 !important;
-}
-
-.overlay-blocker {
-  position: fixed;
-  width: 100vw;
-  height: calc(100vh + 100px);
-  z-index: 9999;
-  top: 0;
-  left: 0;
-  display: block;
-  background: transparent;
-  inset: 0;
-  pointer-events: unset;
-  cursor: default;
-
-  @media (--vp-mobile) {
-    display: none;
-  }
-}
-
-.mark-color-fuzzy-search {
-  background: var(--background-neutral-disabled) !important;
-  color: currentColor !important;
 }

@@ -9,4 +9,3 @@ export const useLogs = () => {
 
   return { logs, addLog };
 };
-
