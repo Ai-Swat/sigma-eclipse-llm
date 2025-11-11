@@ -5,10 +5,9 @@
   justify-content: center;
   gap: 1rem;
   width: 100%;
-  padding: 1.5rem;
+  padding: 24px;
   flex-shrink: 0;
-  position: absolute;
-  top: 0;
+  height: 84px;
 }
 
 .logo-icon {

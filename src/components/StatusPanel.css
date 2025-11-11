@@ -1,5 +1,5 @@
 .status-panel {
-  border-radius: var(--border-radius);
+  border-radius: var(--custom-border-radius);
   padding: 24px;
   text-align: center;
   align-items: center;

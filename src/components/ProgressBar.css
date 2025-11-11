@@ -3,14 +3,14 @@
   padding: 12px;
   background: var(--background-neutral-global-tertiary);
   border: 1px solid var(--stroke-neutral-alfa-secondary);
-  border-radius: var(--border-radius);
+  border-radius: var(--custom-border-radius);
 }
 
 .progress-bar {
   width: 100%;
   height: 24px;
   background: var(--background-neutral-disabled);
-  border-radius: var(--border-radius);
+  border-radius: var(--custom-border-radius);
   overflow: hidden;
   position: relative;
 }
@@ -18,7 +18,7 @@
 .progress-fill {
   height: 100%;
   background: linear-gradient(90deg, var(--brand-dark-800), var(--brand-dark-main));
-  border-radius: var(--border-radius);
+  border-radius: var(--custom-border-radius);
   transition: width 0.3s ease;
   position: relative;
   overflow: hidden;

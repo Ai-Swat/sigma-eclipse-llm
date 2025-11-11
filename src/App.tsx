@@ -269,16 +269,18 @@ function App() {
         isProduction={isProduction}
       />
 
-      <StatusPanel
-        status={status}
-        onStartServer={handleStartServer}
-        onStopServer={handleStopServer}
-      />
+      <div className="content">
+        <StatusPanel
+          status={status}
+          onStartServer={handleStartServer}
+          onStopServer={handleStopServer}
+        />
 
-      {!isProduction && <LogsSection logs={logs} />}
+        {!isProduction && <LogsSection logs={logs} />}
 
-      <div className="footer-section">
-        <ThemeSwitcher theme={theme} onToggleTheme={toggleTheme} />
+        <div className="footer-section">
+          <ThemeSwitcher theme={theme} onToggleTheme={toggleTheme} />
+        </div>
       </div>
 
       <Toaster position="bottom-right" expand={true} richColors closeButton dir="ltr" />

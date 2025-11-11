@@ -49,7 +49,7 @@ export const SettingsPanel = ({
   return (
     <div className="settings-overlay">
       <div className="settings-panel">
-        <div className="settings-header">
+        <div className="header-section">
           <h2>Settings</h2>
           <button className="transparent-hover-button close-button" onClick={onClose} title="Close">
             <CloseIcon width={20} height={20} />

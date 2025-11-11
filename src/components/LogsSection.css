@@ -1,7 +1,7 @@
 .logs {
   background: var(--background-neutral-global-tertiary);
   border: 1px solid var(--stroke-neutral-alfa-secondary);
-  border-radius: var(--border-radius);
+  border-radius: var(--custom-border-radius);
   padding: 16px;
   max-height: 190px;
   overflow-y: auto;

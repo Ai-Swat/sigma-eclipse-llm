@@ -28,7 +28,7 @@
 
 .settings-content {
   overflow-y: auto;
-  padding: 1.5rem;
+  padding: 0 1.5rem 2rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -44,27 +44,11 @@
   background: var(--background-neutral-global-tertiary);
 }
 
-.settings-header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
-  border-bottom: 1px solid var(--stroke-neutral-alfa-secondary);
-  flex-shrink: 0;
-  position: relative;
-}
-
-.settings-header h2 {
-  margin: 0;
-  font-size: 22px;
-  line-height: 32px !important;
-}
-
 /* Section */
 .section {
   background-color: var(--background-brand-primary-subdued);
   width: 100%;
-  border-radius: var(--border-radius);
+  border-radius: var(--custom-border-radius);
   padding: 24px;
   display: flex;
   flex-direction: column;
@@ -97,7 +81,7 @@ input[type="number"] {
   font-size: 16px;
   line-height: 24px;
   border: 1px solid var(--stroke-neutral-alfa-secondary);
-  border-radius: var(--border-radius);
+  border-radius: var(--custom-border-radius);
   background: var(--background-neutral-global-tertiary);
   color: var(--text-neutral-primary);
   transition: all 0.3s ease;
@@ -162,5 +146,5 @@ input[type="number"]:disabled {
 .danger-section {
   border: 2px solid var(--background-error-primary);
   background: var(--background-error-primary-subdued) !important;
-  border-radius: var(--border-radius);
+  border-radius: var(--custom-border-radius);
 }

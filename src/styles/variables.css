@@ -1,4 +1,12 @@
 :root {
   --font-primary: -apple-system, system-ui, Helvetica, Arial;
-  --border-radius: 16px;
+  --custom-border-radius: 16px;
+}
+
+:root.theme-white {
+  --data-sonner-toast-box-shadow: 0 80px 22px 0 rgba(0, 0, 0, 0.00), 0 51px 20px 0 rgba(0, 0, 0, 0.00), 0 29px 17px 0 rgba(0, 0, 0, 0.01), 0 13px 13px 0 rgba(0, 0, 0, 0.02), 0 3px 7px 0 rgba(0, 0, 0, 0.02) !important;
+}
+
+:root.theme-dark {
+  --data-sonner-toast-box-shadow: none !important;
 }
