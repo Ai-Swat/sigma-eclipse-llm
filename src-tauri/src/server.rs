@@ -4,7 +4,12 @@ use std::process::Command;
 use tauri::State;
 
 #[tauri::command]
-pub async fn start_server(state: State<'_, ServerState>, port: u16) -> Result<String, String> {
+pub async fn start_server(
+    state: State<'_, ServerState>,
+    port: u16,
+    ctx_size: u32,
+    gpu_layers: u32,
+) -> Result<String, String> {
     let mut process_guard = state.process.lock().unwrap();
 
     // Check if server is already running
@@ -18,6 +23,16 @@ pub async fn start_server(state: State<'_, ServerState>, port: u16) -> Result<St
                 *process_guard = None;
             }
         }
+    }
+
+    // Validate ctx_size (8k to 100k)
+    if ctx_size < 6000 || ctx_size > 100000 {
+        return Err("Context size must be between 8000 and 100000".to_string());
+    }
+
+    // Validate gpu_layers (0 to 41)
+    if gpu_layers > 41 {
+        return Err("GPU layers must be between 0 and 41".to_string());
     }
 
     let binary_path = get_llama_binary_path().map_err(|e| e.to_string())?;
@@ -41,15 +56,18 @@ pub async fn start_server(state: State<'_, ServerState>, port: u16) -> Result<St
         .arg("--port")
         .arg(port.to_string())
         .arg("--ctx-size")
-        .arg("30000")
+        .arg(ctx_size.to_string())
         .arg("--n-gpu-layers")
-        .arg("41")
+        .arg(gpu_layers.to_string())
         .spawn()
         .map_err(|e| format!("Failed to start server: {}", e))?;
 
     *process_guard = Some(child);
 
-    Ok(format!("Server started on port {}", port))
+    Ok(format!(
+        "Server started on port {} (ctx: {}, gpu layers: {})",
+        port, ctx_size, gpu_layers
+    ))
 }
 
 #[tauri::command]

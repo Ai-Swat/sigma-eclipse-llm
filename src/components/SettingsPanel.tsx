@@ -6,6 +6,8 @@ interface SettingsPanelProps {
   appDataPath: string;
   modelUrl: string;
   port: number;
+  ctxSize: number;
+  gpuLayers: number;
   isDownloadingLlama: boolean;
   isDownloadingModel: boolean;
   downloadProgress: DownloadProgress | null;
@@ -15,6 +17,8 @@ interface SettingsPanelProps {
   onDownloadModel: () => void;
   onModelUrlChange: (url: string) => void;
   onPortChange: (port: number) => void;
+  onCtxSizeChange: (ctxSize: number) => void;
+  onGpuLayersChange: (gpuLayers: number) => void;
   onClearAllData: () => void;
 }
 
@@ -23,6 +27,8 @@ export const SettingsPanel = ({
   appDataPath,
   modelUrl,
   port,
+  ctxSize,
+  gpuLayers,
   isDownloadingLlama,
   isDownloadingModel,
   downloadProgress,
@@ -32,8 +38,11 @@ export const SettingsPanel = ({
   onDownloadModel,
   onModelUrlChange,
   onPortChange,
+  onCtxSizeChange,
+  onGpuLayersChange,
   onClearAllData,
 }: SettingsPanelProps) => {
+  console.log(status);
   if (!isOpen) return null;
 
   return (
@@ -111,6 +120,31 @@ export const SettingsPanel = ({
                 min="1024"
                 max="65535"
               />
+            </div>
+            
+            <div className="form-group">
+              <label>Context Size:</label>
+              <input
+                type="number"
+                value={ctxSize}
+                onChange={(e) => onCtxSizeChange(parseInt(e.target.value) || 30000)}
+                min="6000"
+                max="100000"
+                step="1000"
+              />
+              <small className="help-text">Range: 6,000 - 100,000 tokens</small>
+            </div>
+            
+            <div className="form-group">
+              <label>GPU Layers:</label>
+              <input
+                type="number"
+                value={gpuLayers}
+                onChange={(e) => onGpuLayersChange(parseInt(e.target.value) || 41)}
+                min="0"
+                max="41"
+              />
+              <small className="help-text">Range: 0 - 41 layers (0 = CPU only)</small>
             </div>
           </div>
 

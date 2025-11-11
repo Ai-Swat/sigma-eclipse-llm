@@ -289,6 +289,15 @@ h2 {
   line-height: 22px;
 }
 
+.help-text {
+  display: block;
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-neutral-tertiary);
+  font-style: italic;
+}
+
 /* Inputs */
 input[type="text"],
 input[type="number"] {

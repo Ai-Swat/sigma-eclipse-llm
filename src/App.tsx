@@ -12,7 +12,18 @@ function App() {
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [modelUrl, setModelUrl] = useState("");
-  const [port, setPort] = useState(10345);
+  const [port, setPort] = useState(() => {
+    const saved = localStorage.getItem("port");
+    return saved ? parseInt(saved) : 10345;
+  });
+  const [ctxSize, setCtxSize] = useState(() => {
+    const saved = localStorage.getItem("ctxSize");
+    return saved ? parseInt(saved) : 6000;
+  });
+  const [gpuLayers, setGpuLayers] = useState(() => {
+    const saved = localStorage.getItem("gpuLayers");
+    return saved ? parseInt(saved) : 41;
+  });
   const [appDataPath, setAppDataPath] = useState("");
   
   const { downloadProgress, setCurrentToastId, setDownloadProgress } = useDownloadProgress(addLog);
@@ -24,14 +35,14 @@ function App() {
     setDownloadProgress,
   });
 
-  // Auto-detect and set model URL based on system memory
+  // Auto-detect and set model URL and context size based on system memory
   useEffect(() => {
-    const detectModelUrl = async () => {
+    const detectSystemSettings = async () => {
       try {
         const memoryGb = await invoke<number>("get_system_memory_gb");
         console.log(`System memory detected: ${memoryGb} GB`);
         
-        // If memory is less than 16GB, use the smaller model
+        // Set model URL based on memory
         if (memoryGb < 16) {
           setModelUrl("https://releases.sigmabrowser.com/dev/secure-llm/model_s.zip");
           addLog(`Auto-selected smaller model (RAM: ${memoryGb} GB < 16 GB)`);
@@ -39,15 +50,41 @@ function App() {
           setModelUrl("https://releases.sigmabrowser.com/dev/secure-llm/model.zip");
           addLog(`Auto-selected full model (RAM: ${memoryGb} GB >= 16 GB)`);
         }
+        
+        // Set context size based on memory (only if not manually set by user)
+        const savedCtxSize = localStorage.getItem("ctxSize");
+        if (!savedCtxSize) {
+          let autoCtxSize: number;
+          if (memoryGb < 16) {
+            autoCtxSize = 6000;
+            addLog(`Auto-selected context size: 6k (RAM: ${memoryGb} GB < 16 GB)`);
+          } else if (memoryGb >= 16 && memoryGb < 24) {
+            autoCtxSize = 15000;
+            addLog(`Auto-selected context size: 15k (RAM: ${memoryGb} GB between 16-24 GB)`);
+          } else {
+            autoCtxSize = 30000;
+            addLog(`Auto-selected context size: 30k (RAM: ${memoryGb} GB >= 24 GB)`);
+          }
+          setCtxSize(autoCtxSize);
+          localStorage.setItem("ctxSize", autoCtxSize.toString());
+        }
       } catch (error) {
         console.error("Failed to detect system memory:", error);
         // Fallback to smaller model if detection fails
         setModelUrl("https://releases.sigmabrowser.com/dev/secure-llm/model_s.zip");
         addLog("Failed to detect RAM, using smaller model as fallback");
+        
+        // Set fallback context size if not set
+        const savedCtxSize = localStorage.getItem("ctxSize");
+        if (!savedCtxSize) {
+          setCtxSize(6000);
+          localStorage.setItem("ctxSize", "6000");
+          addLog("Using fallback context size: 6k");
+        }
       }
     };
     
-    detectModelUrl();
+    detectSystemSettings();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Get app data path on mount
@@ -107,15 +144,34 @@ function App() {
   };
 
   const handleStartServer = async () => {
-    addLog(`Starting LLM on port ${port}...`);
+    addLog(`Starting LLM on port ${port} (ctx: ${ctxSize}, gpu layers: ${gpuLayers})...`);
     try {
-      const result = await invoke<string>("start_server", { port });
+      const result = await invoke<string>("start_server", { 
+        port, 
+        ctxSize, 
+        gpuLayers 
+      });
       toast.success(result);
       addLog(result);
     } catch (error) {
       toast.error(`Error: ${error}`);
       addLog(`Error: ${error}`);
     }
+  };
+
+  const handlePortChange = (newPort: number) => {
+    setPort(newPort);
+    localStorage.setItem("port", newPort.toString());
+  };
+
+  const handleCtxSizeChange = (newCtxSize: number) => {
+    setCtxSize(newCtxSize);
+    localStorage.setItem("ctxSize", newCtxSize.toString());
+  };
+
+  const handleGpuLayersChange = (newGpuLayers: number) => {
+    setGpuLayers(newGpuLayers);
+    localStorage.setItem("gpuLayers", newGpuLayers.toString());
   };
 
   const handleStopServer = async () => {
@@ -179,6 +235,8 @@ function App() {
         appDataPath={appDataPath}
         modelUrl={modelUrl}
         port={port}
+        ctxSize={ctxSize}
+        gpuLayers={gpuLayers}
         isDownloadingLlama={isDownloadingLlama}
         isDownloadingModel={isDownloadingModel}
         downloadProgress={downloadProgress}
@@ -187,7 +245,9 @@ function App() {
         onDownloadLlama={handleDownloadLlama}
         onDownloadModel={handleDownloadModel}
         onModelUrlChange={setModelUrl}
-        onPortChange={setPort}
+        onPortChange={handlePortChange}
+        onCtxSizeChange={handleCtxSizeChange}
+        onGpuLayersChange={handleGpuLayersChange}
         onClearAllData={handleClearAllData}
       />
       

@@ -13,6 +13,7 @@ export const HeaderSection = ({
   onToggleTheme, 
   onToggleSettings 
 }: HeaderSectionProps) => {
+  console.log(isSettingsOpen);
   return (
     <div className="header-section">
       <h1>
