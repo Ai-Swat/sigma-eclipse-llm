@@ -8,14 +8,13 @@
 
 .content {
   overflow-y: auto;
-  padding: 0 1.5rem;
+  padding: 0 1.5rem 84px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 24px;
   flex: 1;
-  margin-bottom: 84px;
 }
 
 h1 {
