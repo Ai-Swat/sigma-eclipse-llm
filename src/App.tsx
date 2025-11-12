@@ -167,7 +167,12 @@ function App() {
     }
   };
 
+  const [isBusy, setIsBusy] = useState(false);
+
   const handleStartServer = async () => {
+    if (isBusy) return;
+    setIsBusy(true);
+
     addLog(`Starting LLM on port ${port} (ctx: ${ctxSize}, gpu layers: ${gpuLayers})...`);
     try {
       const result = await invoke<string>("start_server", {
@@ -180,6 +185,8 @@ function App() {
     } catch (error) {
       toast.error(`Error: ${error}`);
       addLog(`Error: ${error}`);
+    } finally {
+      setIsBusy(false);
     }
   };
 
@@ -199,6 +206,9 @@ function App() {
   };
 
   const handleStopServer = async () => {
+    if (isBusy) return;
+    setIsBusy(true);
+
     addLog("Stopping server...");
     try {
       const result = await invoke<string>("stop_server");
@@ -207,6 +217,8 @@ function App() {
     } catch (error) {
       toast.error(`Error: ${error}`);
       addLog(`Error: ${error}`);
+    } finally {
+      setIsBusy(false);
     }
   };
 
@@ -274,6 +286,7 @@ function App() {
           status={status}
           onStartServer={handleStartServer}
           onStopServer={handleStopServer}
+          isBusy={isBusy}
         />
 
         {!isProduction && <LogsSection logs={logs} />}

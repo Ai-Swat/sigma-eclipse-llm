@@ -4,9 +4,10 @@ import "./StartButton.css";
 interface StartButtonProps {
   handleClick: () => void;
   isRunning: boolean;
+  isBusy: boolean;
 }
 
-export const StartButton = ({ handleClick, isRunning }: StartButtonProps) => {
+export const StartButton = ({ handleClick, isRunning, isBusy }: StartButtonProps) => {
   const [isActive, setIsActive] = useState(isRunning);
 
   useEffect(() => {
@@ -14,6 +15,7 @@ export const StartButton = ({ handleClick, isRunning }: StartButtonProps) => {
   }, [isRunning]);
 
   const onClick = () => {
+    if (isBusy) return;
     setIsActive((prev) => !prev);
     handleClick();
   };

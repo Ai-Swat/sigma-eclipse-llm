@@ -3,6 +3,7 @@
   border: 1px solid var(--stroke-neutral-alfa-secondary);
   border-radius: var(--custom-border-radius);
   padding: 16px;
+  min-height: 190px;
   max-height: 190px;
   overflow-y: auto;
   font-family: "Courier New", "Monaco", "Menlo", monospace;

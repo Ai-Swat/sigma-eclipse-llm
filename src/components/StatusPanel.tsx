@@ -6,9 +6,10 @@ interface StatusPanelProps {
   status: ServerStatus;
   onStartServer: () => void;
   onStopServer: () => void;
+  isBusy: boolean;
 }
 
-export const StatusPanel = ({ status, onStartServer, onStopServer }: StatusPanelProps) => {
+export const StatusPanel = ({ status, onStartServer, onStopServer, isBusy }: StatusPanelProps) => {
   return (
     <div className="status-panel">
       <div className="status-text-wrapper">
@@ -21,6 +22,7 @@ export const StatusPanel = ({ status, onStartServer, onStopServer }: StatusPanel
       <StartButton
         isRunning={status.is_running}
         handleClick={status.is_running ? onStopServer : onStartServer}
+        isBusy={isBusy}
       />
     </div>
   );
