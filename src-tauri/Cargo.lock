@@ -3657,6 +3657,7 @@ dependencies = [
  "anyhow",
  "dirs 5.0.1",
  "futures-util",
+ "libc",
  "reqwest",
  "serde",
  "serde_json",

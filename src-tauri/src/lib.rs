@@ -16,7 +16,7 @@ use types::ServerState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
@@ -46,20 +46,48 @@ pub fn run() {
             }
         })
         .build(tauri::generate_context!())
-        .expect("error while building tauri application")
-        .run(|app_handle, event| {
-            match event {
-                // Handle macOS dock icon click to show window
-                #[cfg(target_os = "macos")]
-                tauri::RunEvent::Reopen { has_visible_windows, .. } => {
-                    if !has_visible_windows {
-                        if let Some(window) = app_handle.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
-                        }
+        .expect("error while building tauri application");
+
+    // Register cleanup handler for app termination
+    app.run(|app_handle, event| {
+        match event {
+            // Handle macOS dock icon click to show window
+            #[cfg(target_os = "macos")]
+            tauri::RunEvent::Reopen { has_visible_windows, .. } => {
+                if !has_visible_windows {
+                    if let Some(window) = app_handle.get_webview_window("main") {
+                        let _ = window.show();
+                        let _ = window.set_focus();
                     }
                 }
-                _ => {}
             }
-        });
+            // Handle all exit scenarios - stop server before quitting
+            tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit => {
+                eprintln!("App is exiting, stopping server...");
+                // Get server state and stop server if running
+                if let Some(state) = app_handle.try_state::<ServerState>() {
+                    let mut process_guard = state.process.lock().unwrap();
+                    if let Some(mut child) = process_guard.take() {
+                        eprintln!("Killing server process...");
+                        
+                        // On Unix, kill the entire process group
+                        #[cfg(unix)]
+                        {
+                            let pid = child.id() as i32;
+                            unsafe {
+                                libc::kill(-pid, libc::SIGTERM);
+                                std::thread::sleep(std::time::Duration::from_millis(100));
+                                libc::kill(-pid, libc::SIGKILL);
+                            }
+                        }
+                        
+                        let _ = child.kill();
+                        let _ = child.wait();
+                        eprintln!("Server process stopped");
+                    }
+                }
+            }
+            _ => {}
+        }
+    });
 }

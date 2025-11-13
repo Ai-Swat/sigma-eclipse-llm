@@ -50,7 +50,9 @@ pub async fn start_server(
     }
 
     // Start llama-server in API-only mode (no web frontend)
-    let child = Command::new(&binary_path)
+    // Use kill_on_drop to ensure process is killed when parent exits
+    let mut command = Command::new(&binary_path);
+    command
         .arg("-m")
         .arg(&model_path)
         .arg("--port")
@@ -58,7 +60,16 @@ pub async fn start_server(
         .arg("--ctx-size")
         .arg(ctx_size.to_string())
         .arg("--n-gpu-layers")
-        .arg(gpu_layers.to_string())
+        .arg(gpu_layers.to_string());
+    
+    // On Unix, create a new process group so we can kill the entire group
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        command.process_group(0);
+    }
+    
+    let child = command
         .spawn()
         .map_err(|e| format!("Failed to start server: {}", e))?;
 
@@ -75,12 +86,24 @@ pub async fn stop_server(state: State<'_, ServerState>) -> Result<String, String
     let mut process_guard = state.process.lock().unwrap();
 
     if let Some(mut child) = process_guard.take() {
-        child
-            .kill()
-            .map_err(|e| format!("Failed to stop server: {}", e))?;
-        child
-            .wait()
-            .map_err(|e| format!("Failed to wait for server: {}", e))?;
+        // On Unix, kill the entire process group
+        #[cfg(unix)]
+        {
+            let pid = child.id() as i32;
+            // Kill the process group (negative PID means process group)
+            unsafe {
+                libc::kill(-pid, libc::SIGTERM);
+                // Wait a bit for graceful shutdown
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                // Force kill if still running
+                libc::kill(-pid, libc::SIGKILL);
+            }
+        }
+        
+        // Standard kill for non-Unix or as fallback
+        let _ = child.kill();
+        let _ = child.wait();
+        
         Ok("Server stopped".to_string())
     } else {
         Err("LLM is not running".to_string())

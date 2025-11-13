@@ -27,6 +27,17 @@ pub async fn clear_binaries(state: State<'_, ServerState>) -> Result<String, Str
     // Stop server if running
     let mut process_guard = state.process.lock().unwrap();
     if let Some(mut child) = process_guard.take() {
+        // On Unix, kill the entire process group
+        #[cfg(unix)]
+        {
+            let pid = child.id() as i32;
+            unsafe {
+                libc::kill(-pid, libc::SIGTERM);
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                libc::kill(-pid, libc::SIGKILL);
+            }
+        }
+        
         let _ = child.kill();
         let _ = child.wait();
     }
@@ -61,6 +72,17 @@ pub async fn clear_all_data(state: State<'_, ServerState>) -> Result<String, Str
     // Stop server if running
     let mut process_guard = state.process.lock().unwrap();
     if let Some(mut child) = process_guard.take() {
+        // On Unix, kill the entire process group
+        #[cfg(unix)]
+        {
+            let pid = child.id() as i32;
+            unsafe {
+                libc::kill(-pid, libc::SIGTERM);
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                libc::kill(-pid, libc::SIGKILL);
+            }
+        }
+        
         let _ = child.kill();
         let _ = child.wait();
     }
