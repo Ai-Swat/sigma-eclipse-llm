@@ -6,7 +6,7 @@
   padding: 10px 24px 10px 12px !important;
   border-radius: var(--custom-border-radius) !important;
   border: 1.25px solid var(--stroke-neutral-alfa-tertiary) !important;
-  background: var(--background-neutral-global-tertiary) !important;
+  background: var(--background-neutral-global-secondary) !important;
   font-size: 15px !important;
   box-shadow: var(--data-sonner-toast-box-shadow);
 }
