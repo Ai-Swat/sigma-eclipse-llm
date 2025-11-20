@@ -27,11 +27,48 @@ pub fn get_llama_binary_path() -> Result<PathBuf> {
     Ok(binary_path)
 }
 
-// Get path to model directory
-pub fn get_model_dir() -> Result<PathBuf> {
+// Get path to models root directory
+pub fn get_models_root_dir() -> Result<PathBuf> {
     let app_dir = get_app_data_dir()?;
-    let model_dir = app_dir.join("models");
+    let models_dir = app_dir.join("models");
+    fs::create_dir_all(&models_dir)?;
+    Ok(models_dir)
+}
+
+// Get path to specific model directory
+pub fn get_model_dir(model_name: &str) -> Result<PathBuf> {
+    let models_root = get_models_root_dir()?;
+    let model_dir = models_root.join(model_name);
     fs::create_dir_all(&model_dir)?;
     Ok(model_dir)
+}
+
+// Get path to model file (.gguf)
+pub fn get_model_file_path(model_name: &str) -> Result<PathBuf> {
+    let model_dir = get_model_dir(model_name)?;
+    // Look for any .gguf file in the model directory
+    Ok(model_dir.join("model.gguf"))
+}
+
+// Check if model is downloaded
+pub fn is_model_downloaded(model_name: &str) -> Result<bool> {
+    let model_dir = get_model_dir(model_name)?;
+    
+    // Check if directory exists and has .gguf file
+    if !model_dir.exists() {
+        return Ok(false);
+    }
+    
+    // Look for any .gguf file in the directory
+    if let Ok(entries) = fs::read_dir(&model_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) == Some("gguf") {
+                return Ok(true);
+            }
+        }
+    }
+    
+    Ok(false)
 }
 

@@ -1,4 +1,5 @@
-use crate::paths::{get_llama_binary_path, get_model_dir};
+use crate::paths::{get_llama_binary_path, get_model_file_path};
+use crate::settings::get_active_model;
 use crate::types::{ServerState, ServerStatus};
 use std::process::Command;
 use tauri::State;
@@ -36,8 +37,10 @@ pub async fn start_server(
     }
 
     let binary_path = get_llama_binary_path().map_err(|e| e.to_string())?;
-    let model_dir = get_model_dir().map_err(|e| e.to_string())?;
-    let model_path = model_dir.join("model.gguf");
+    
+    // Get active model from settings
+    let active_model = get_active_model().map_err(|e| e.to_string())?;
+    let model_path = get_model_file_path(&active_model).map_err(|e| e.to_string())?;
 
     // Check if binary exists
     if !binary_path.exists() {
@@ -46,7 +49,7 @@ pub async fn start_server(
 
     // Check if model exists
     if !model_path.exists() {
-        return Err("Model not found. Please download it first.".to_string());
+        return Err(format!("Model '{}' not found. Please download it first.", active_model));
     }
 
     // Start llama-server in API-only mode (no web frontend)
@@ -76,8 +79,8 @@ pub async fn start_server(
     *process_guard = Some(child);
 
     Ok(format!(
-        "Server started on port {} (ctx: {}, gpu layers: {})",
-        port, ctx_size, gpu_layers
+        "Server started on port {} (model: {}, ctx: {}, gpu layers: {})",
+        port, active_model, ctx_size, gpu_layers
     ))
 }
 

@@ -11,6 +11,13 @@ import {
 import { useTheme, useServerStatus, useLogs, useDownloadProgress, useAutoDownload } from "./hooks";
 import "./App.css";
 
+interface RecommendedSettings {
+  memory_gb: number;
+  recommended_model: string;
+  recommended_ctx_size: number;
+  recommended_gpu_layers: number;
+}
+
 function App() {
   const { theme, toggleTheme } = useTheme();
   const status = useServerStatus();
@@ -18,7 +25,7 @@ function App() {
   const isProduction = import.meta.env.PROD;
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [modelUrl, setModelUrl] = useState("");
+  const [recommendedModel, setRecommendedModel] = useState("model");
   const [port, setPort] = useState(() => {
     const saved = localStorage.getItem("port");
     return saved ? parseInt(saved) : 10345;
@@ -43,51 +50,46 @@ function App() {
     setIsDownloadingLlama,
     setIsDownloadingModel,
   } = useAutoDownload({
-    modelUrl,
+    modelName: recommendedModel,
     addLog,
     setCurrentToastId,
     setDownloadProgress,
   });
 
-  // Auto-detect and set model URL and context size based on system memory
+  // Get recommended settings from backend
   useEffect(() => {
-    const detectSystemSettings = async () => {
+    const loadRecommendedSettings = async () => {
       try {
-        const memoryGb = await invoke<number>("get_system_memory_gb");
+        const settings = await invoke<RecommendedSettings>("get_recommended_settings");
         // eslint-disable-next-line no-console
-        console.log(`System memory detected: ${memoryGb} GB`);
+        console.log("Recommended settings:", settings);
 
-        // Set model URL based on memory
-        if (memoryGb < 16) {
-          setModelUrl("https://releases.sigmabrowser.com/dev/secure-llm/model_s.zip");
-          addLog(`Auto-selected smaller model (RAM: ${memoryGb} GB < 16 GB)`);
-        } else {
-          setModelUrl("https://releases.sigmabrowser.com/dev/secure-llm/model.zip");
-          addLog(`Auto-selected full model (RAM: ${memoryGb} GB >= 16 GB)`);
-        }
+        setRecommendedModel(settings.recommended_model);
+        addLog(
+          `Auto-selected model: ${settings.recommended_model} (RAM: ${settings.memory_gb} GB)`
+        );
 
-        // Set context size based on memory (only if not manually set by user)
+        // Set context size only if not manually set by user
         const savedCtxSize = localStorage.getItem("ctxSize");
         if (!savedCtxSize) {
-          let autoCtxSize: number;
-          if (memoryGb < 16) {
-            autoCtxSize = 6000;
-            addLog(`Auto-selected context size: 6k (RAM: ${memoryGb} GB < 16 GB)`);
-          } else if (memoryGb >= 16 && memoryGb < 24) {
-            autoCtxSize = 15000;
-            addLog(`Auto-selected context size: 15k (RAM: ${memoryGb} GB between 16-24 GB)`);
-          } else {
-            autoCtxSize = 30000;
-            addLog(`Auto-selected context size: 30k (RAM: ${memoryGb} GB >= 24 GB)`);
-          }
-          setCtxSize(autoCtxSize);
-          localStorage.setItem("ctxSize", autoCtxSize.toString());
+          setCtxSize(settings.recommended_ctx_size);
+          localStorage.setItem("ctxSize", settings.recommended_ctx_size.toString());
+          addLog(
+            `Auto-selected context size: ${settings.recommended_ctx_size} (RAM: ${settings.memory_gb} GB)`
+          );
+        }
+
+        // Set GPU layers only if not manually set by user
+        const savedGpuLayers = localStorage.getItem("gpuLayers");
+        if (!savedGpuLayers) {
+          setGpuLayers(settings.recommended_gpu_layers);
+          localStorage.setItem("gpuLayers", settings.recommended_gpu_layers.toString());
         }
       } catch (error) {
-        console.error("Failed to detect system memory:", error);
+        console.error("Failed to get recommended settings:", error);
         // Fallback to smaller model if detection fails
-        setModelUrl("https://releases.sigmabrowser.com/dev/secure-llm/model_s.zip");
-        addLog("Failed to detect RAM, using smaller model as fallback");
+        setRecommendedModel("model_s");
+        addLog("Failed to detect system settings, using fallback: model_s");
 
         // Set fallback context size if not set
         const savedCtxSize = localStorage.getItem("ctxSize");
@@ -99,7 +101,7 @@ function App() {
       }
     };
 
-    detectSystemSettings();
+    loadRecommendedSettings();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Get app data path on mount
@@ -141,20 +143,17 @@ function App() {
       return;
     }
 
-    if (!modelUrl.trim()) {
-      toast.error("Please enter a model URL");
-      addLog("Error: Please enter a model URL");
-      return;
-    }
     setIsDownloadingModel(true);
     setDownloadProgress(null);
 
-    const toastId = toast.loading(`Starting model download...`);
+    const toastId = toast.loading(`Starting model '${recommendedModel}' download...`);
     setCurrentToastId(toastId);
-    addLog(`Starting model download from ${modelUrl}...`);
+    addLog(`Starting model '${recommendedModel}' download...`);
 
     try {
-      const result = await invoke<string>("download_model", { modelUrl });
+      const result = await invoke<string>("download_model_by_name", {
+        modelName: recommendedModel,
+      });
       toast.success(result, { id: toastId });
       addLog(result);
     } catch (error) {
@@ -262,7 +261,7 @@ function App() {
       <SettingsPanel
         isOpen={isSettingsOpen}
         appDataPath={appDataPath}
-        modelUrl={modelUrl}
+        recommendedModel={recommendedModel}
         port={port}
         ctxSize={ctxSize}
         gpuLayers={gpuLayers}
@@ -273,7 +272,6 @@ function App() {
         onClose={() => setIsSettingsOpen(false)}
         onDownloadLlama={handleDownloadLlama}
         onDownloadModel={handleDownloadModel}
-        onModelUrlChange={setModelUrl}
         onPortChange={handlePortChange}
         onCtxSizeChange={handleCtxSizeChange}
         onGpuLayersChange={handleGpuLayersChange}

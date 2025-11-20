@@ -1,5 +1,5 @@
-use crate::paths::{get_app_data_dir, get_bin_dir, get_model_dir};
-use crate::types::ServerState;
+use crate::paths::{get_app_data_dir, get_bin_dir, get_models_root_dir};
+use crate::types::{RecommendedSettings, ServerState};
 use std::fs;
 use sysinfo::System;
 use tauri::State;
@@ -20,6 +20,42 @@ pub fn get_system_memory_gb() -> Result<u64, String> {
     let total_memory_gb = total_memory_bytes / (1024 * 1024 * 1024);
 
     Ok(total_memory_gb)
+}
+
+#[tauri::command]
+pub fn get_recommended_settings() -> Result<RecommendedSettings, String> {
+    let memory_gb = get_system_memory_gb()?;
+
+    // Determine recommended model based on RAM
+    let recommended_model = if memory_gb < 16 {
+        "model_s".to_string() // Smaller model for systems with < 16GB RAM
+    } else {
+        "model".to_string() // Full model for systems with >= 16GB RAM
+    };
+
+    // Determine recommended context size based on RAM
+    let recommended_ctx_size = if memory_gb < 16 {
+        6000 // 6k context for low RAM systems
+    } else if memory_gb >= 16 && memory_gb < 24 {
+        15000 // 15k context for medium RAM systems
+    } else {
+        30000 // 30k context for high RAM systems
+    };
+
+    // GPU layers - default to 41 (all layers on GPU if available)
+    let recommended_gpu_layers = 41;
+
+    println!(
+        "Recommended settings: RAM={}GB, model={}, ctx={}, gpu_layers={}",
+        memory_gb, recommended_model, recommended_ctx_size, recommended_gpu_layers
+    );
+
+    Ok(RecommendedSettings {
+        memory_gb,
+        recommended_model,
+        recommended_ctx_size,
+        recommended_gpu_layers,
+    })
 }
 
 #[tauri::command]
@@ -56,12 +92,12 @@ pub async fn clear_binaries(state: State<'_, ServerState>) -> Result<String, Str
 
 #[tauri::command]
 pub async fn clear_models() -> Result<String, String> {
-    let model_dir = get_model_dir().map_err(|e| e.to_string())?;
+    let models_dir = get_models_root_dir().map_err(|e| e.to_string())?;
 
-    if model_dir.exists() {
-        fs::remove_dir_all(&model_dir)
+    if models_dir.exists() {
+        fs::remove_dir_all(&models_dir)
             .map_err(|e| format!("Failed to remove models directory: {}", e))?;
-        println!("Removed models directory: {:?}", model_dir);
+        println!("Removed models directory: {:?}", models_dir);
     }
 
     Ok("Models cleared successfully".to_string())

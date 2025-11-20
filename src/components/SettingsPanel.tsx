@@ -6,7 +6,7 @@ import "./SettingsPanel.css";
 interface SettingsPanelProps {
   isOpen: boolean;
   appDataPath: string;
-  modelUrl: string;
+  recommendedModel: string;
   port: number;
   ctxSize: number;
   gpuLayers: number;
@@ -17,7 +17,6 @@ interface SettingsPanelProps {
   onClose: () => void;
   onDownloadLlama: () => void;
   onDownloadModel: () => void;
-  onModelUrlChange: (url: string) => void;
   onPortChange: (port: number) => void;
   onCtxSizeChange: (ctxSize: number) => void;
   onGpuLayersChange: (gpuLayers: number) => void;
@@ -28,7 +27,7 @@ interface SettingsPanelProps {
 export const SettingsPanel = ({
   isOpen,
   appDataPath,
-  modelUrl,
+  recommendedModel,
   port,
   ctxSize,
   gpuLayers,
@@ -81,22 +80,22 @@ export const SettingsPanel = ({
             )}
 
             <div className="form-group">
-              <label>Model URL:</label>
+              <label>Model Name:</label>
               <input
                 type="text"
-                value={modelUrl}
-                // onChange={(e) => onModelUrlChange(e.target.value)}
-                placeholder="https://example.com/model.zip"
+                value={recommendedModel}
+                placeholder="model"
                 disabled
                 className="readonly-input"
               />
+              <small className="help-text">Auto-selected based on system RAM</small>
             </div>
 
             <div className="button-group">
               <button
                 className="primary-button"
                 onClick={onDownloadModel}
-                disabled={isDownloadingModel || !modelUrl.trim()}
+                disabled={isDownloadingModel || !recommendedModel}
               >
                 {isDownloadingModel ? "Downloading..." : "Download Model"}
               </button>

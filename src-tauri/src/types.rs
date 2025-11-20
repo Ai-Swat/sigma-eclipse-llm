@@ -29,11 +29,59 @@ pub struct LlamaCppConfig {
     pub platforms: HashMap<String, String>,
 }
 
+// Model configuration from versions.json
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ModelConfig {
+    pub version: String,
+    pub filename: String,
+    pub url: String,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct VersionsConfig {
     #[serde(rename = "appVersion")]
+    #[allow(dead_code)]
     pub app_version: String,
     #[serde(rename = "llamaCpp")]
     pub llama_cpp: LlamaCppConfig,
+    #[serde(default)]
+    pub models: HashMap<String, ModelConfig>,
+}
+
+// Model information for API
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelInfo {
+    pub name: String,
+    pub version: String,
+    pub is_downloaded: bool,
+    pub path: Option<String>,
+}
+
+// Application settings
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppSettings {
+    #[serde(default = "default_active_model")]
+    pub active_model: String,
+}
+
+fn default_active_model() -> String {
+    "model".to_string()
+}
+
+impl Default for AppSettings {
+    fn default() -> Self {
+        Self {
+            active_model: default_active_model(),
+        }
+    }
+}
+
+// Recommended system settings based on available resources
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RecommendedSettings {
+    pub memory_gb: u64,
+    pub recommended_model: String,
+    pub recommended_ctx_size: u32,
+    pub recommended_gpu_layers: u32,
 }
 

@@ -5,13 +5,21 @@ use tauri::Manager;
 mod download;
 mod paths;
 mod server;
+mod settings;
 mod system;
 mod types;
 
 // Re-export command functions
-use download::{check_llama_version, download_llama_cpp, download_model};
+use download::{
+    check_llama_version, check_model_downloaded, delete_model, download_llama_cpp,
+    download_model_by_name, list_available_models,
+};
 use server::{get_server_status, start_server, stop_server};
-use system::{clear_all_data, clear_binaries, clear_models, get_app_data_path, get_system_memory_gb};
+use settings::{get_active_model_command, set_active_model_command};
+use system::{
+    clear_all_data, clear_binaries, clear_models, get_app_data_path, get_recommended_settings,
+    get_system_memory_gb,
+};
 use types::ServerState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -27,12 +35,18 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             check_llama_version,
             download_llama_cpp,
-            download_model,
+            download_model_by_name,
+            list_available_models,
+            check_model_downloaded,
+            delete_model,
+            get_active_model_command,
+            set_active_model_command,
             start_server,
             stop_server,
             get_server_status,
             get_app_data_path,
             get_system_memory_gb,
+            get_recommended_settings,
             clear_binaries,
             clear_models,
             clear_all_data,

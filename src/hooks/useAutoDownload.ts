@@ -4,14 +4,14 @@ import { toast } from "sonner";
 import { BaseDirectory, exists } from "@tauri-apps/plugin-fs";
 
 interface UseAutoDownloadProps {
-  modelUrl: string;
+  modelName: string;
   addLog: (message: string) => void;
   setCurrentToastId: (id: string | number | null) => void;
   setDownloadProgress: (progress: any) => void;
 }
 
 export const useAutoDownload = ({
-  modelUrl,
+  modelName,
   addLog,
   setCurrentToastId,
   setDownloadProgress,
@@ -23,8 +23,8 @@ export const useAutoDownload = ({
 
   // Check and auto-download required files on startup
   useEffect(() => {
-    // Don't run if modelUrl is not set yet
-    if (!modelUrl) return;
+    // Don't run if modelName is not set yet
+    if (!modelName) return;
 
     let hasRun = false;
 
@@ -54,12 +54,15 @@ export const useAutoDownload = ({
           }
         }
 
-        // Check if model exists
-        const modelPath = `./models/model.gguf`;
-        const modelExists = await exists(modelPath, { baseDir: BaseDirectory.AppData });
-
-        if (modelExists) {
-          setIsModelAlreadyDownloaded(true);
+        // Check if model exists using backend command
+        let modelExists = false;
+        try {
+          modelExists = await invoke<boolean>("check_model_downloaded", { modelName });
+          if (modelExists) {
+            setIsModelAlreadyDownloaded(true);
+          }
+        } catch (error) {
+          console.error("Failed to check model:", error);
         }
 
         // Auto-download llama.cpp if missing or needs update
@@ -92,18 +95,18 @@ export const useAutoDownload = ({
           }
         }
 
-        // Auto-download model if missing and we have a URL
-        if (!modelExists && modelUrl.trim() && !isDownloadingModel) {
+        // Auto-download model if missing
+        if (!modelExists && modelName && !isDownloadingModel) {
           wasSomeDownloads = true;
-          addLog("Model not found, downloading automatically...");
+          addLog(`Model '${modelName}' not found, downloading automatically...`);
           setIsDownloadingModel(true);
           setDownloadProgress(null);
 
-          const toastId = toast.loading(`Starting model download...`);
+          const toastId = toast.loading(`Starting model '${modelName}' download...`);
           setCurrentToastId(toastId);
 
           try {
-            const result = await invoke<string>("download_model", { modelUrl });
+            const result = await invoke<string>("download_model_by_name", { modelName });
             toast.success(result, { id: toastId });
             addLog(result);
           } catch (error) {
@@ -129,7 +132,7 @@ export const useAutoDownload = ({
     // Small delay to ensure file system is ready
     const timer = setTimeout(checkAndDownloadFiles, 500);
     return () => clearTimeout(timer);
-  }, [modelUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [modelName]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     isDownloadingLlama,
