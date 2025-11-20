@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema",
+  "description": "Version mapping for Sigma Shield LLM external dependencies",
+  "appVersion": "0.1.0",
+  "llamaCpp": {
+    "version": "b7109",
+    "platforms": {
+      "macos-arm64": "llama-b7109-bin-macos-arm64.zip",
+      "macos-x64": "llama-b7109-bin-macos-x64.zip",
+      "linux-x64": "llama-b7109-bin-ubuntu-x64.zip",
+      "windows-x64": "llama-b7109-bin-win-cuda-cu12.2.0-x64.zip"
+    }
+  }
+}
+

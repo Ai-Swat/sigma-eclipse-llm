@@ -39,8 +39,19 @@ export const useAutoDownload = ({
         const llamaBinaryPath = `./bin/llama-server`;
         const llamaExists = await exists(llamaBinaryPath, { baseDir: BaseDirectory.AppData });
 
+        // Check if llama.cpp needs update (even if it exists)
+        let needsLlamaUpdate = false;
         if (llamaExists) {
-          setIsLlamaAlreadyDownloaded(true);
+          try {
+            needsLlamaUpdate = await invoke<boolean>("check_llama_version");
+            if (!needsLlamaUpdate) {
+              setIsLlamaAlreadyDownloaded(true);
+            }
+          } catch (error) {
+            console.error("Failed to check llama version:", error);
+            needsLlamaUpdate = false;
+            setIsLlamaAlreadyDownloaded(true);
+          }
         }
 
         // Check if model exists
@@ -51,14 +62,20 @@ export const useAutoDownload = ({
           setIsModelAlreadyDownloaded(true);
         }
 
-        // Auto-download llama.cpp if missing
-        if (!llamaExists && !isDownloadingLlama) {
+        // Auto-download llama.cpp if missing or needs update
+        if ((!llamaExists || needsLlamaUpdate) && !isDownloadingLlama) {
           wasSomeDownloads = true;
-          addLog("llama.cpp not found, downloading automatically...");
+          const message = needsLlamaUpdate 
+            ? "llama.cpp update available, downloading new version..."
+            : "llama.cpp not found, downloading automatically...";
+          addLog(message);
           setIsDownloadingLlama(true);
           setDownloadProgress(null);
 
-          const toastId = toast.loading("Starting llama.cpp download...");
+          const toastMessage = needsLlamaUpdate
+            ? "Updating llama.cpp..."
+            : "Starting llama.cpp download...";
+          const toastId = toast.loading(toastMessage);
           setCurrentToastId(toastId);
 
           try {

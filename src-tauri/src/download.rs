@@ -1,24 +1,134 @@
 use crate::paths::{get_app_data_dir, get_bin_dir, get_model_dir};
-use crate::types::DownloadProgress;
+use crate::types::{DownloadProgress, VersionsConfig};
 use futures_util::StreamExt;
 use std::fs;
 use tauri::{AppHandle, Emitter};
 use tokio::io::AsyncWriteExt;
+
+/// Get current platform identifier for llama.cpp downloads
+fn get_platform_id() -> Result<String, String> {
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    return Ok("macos-arm64".to_string());
+    
+    #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+    return Ok("macos-x64".to_string());
+    
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    return Ok("linux-x64".to_string());
+    
+    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+    return Ok("windows-x64".to_string());
+    
+    #[cfg(not(any(
+        all(target_os = "macos", target_arch = "aarch64"),
+        all(target_os = "macos", target_arch = "x86_64"),
+        all(target_os = "linux", target_arch = "x86_64"),
+        all(target_os = "windows", target_arch = "x86_64")
+    )))]
+    return Err("Unsupported platform".to_string());
+}
+
+/// Load llama.cpp configuration from versions.json
+fn load_llama_config() -> Result<VersionsConfig, String> {
+    let config_str = include_str!("../versions.json");
+    serde_json::from_str(config_str)
+        .map_err(|e| format!("Failed to parse versions.json: {}", e))
+}
+
+/// Get the path to the version file
+fn get_version_file_path() -> Result<std::path::PathBuf, String> {
+    let bin_dir = get_bin_dir().map_err(|e| e.to_string())?;
+    Ok(bin_dir.join("llama-version.txt"))
+}
+
+/// Read the currently installed llama.cpp version
+fn read_installed_version() -> Result<String, String> {
+    let version_file = get_version_file_path()?;
+    if !version_file.exists() {
+        return Err("Version file not found".to_string());
+    }
+    fs::read_to_string(version_file)
+        .map(|s| s.trim().to_string())
+        .map_err(|e| format!("Failed to read version file: {}", e))
+}
+
+/// Write the installed llama.cpp version
+fn write_installed_version(version: &str) -> Result<(), String> {
+    let version_file = get_version_file_path()?;
+    fs::write(version_file, version)
+        .map_err(|e| format!("Failed to write version file: {}", e))
+}
+
+/// Check if llama.cpp needs to be updated
+fn needs_update(current_version: &str) -> Result<bool, String> {
+    match read_installed_version() {
+        Ok(installed_version) => Ok(installed_version != current_version),
+        Err(_) => Ok(true), // If we can't read version, assume update is needed
+    }
+}
+
+#[tauri::command]
+pub async fn check_llama_version() -> Result<bool, String> {
+    let config = load_llama_config()?;
+    let version = &config.llama_cpp.version;
+    
+    needs_update(version)
+}
 
 #[tauri::command]
 pub async fn download_llama_cpp(app: AppHandle) -> Result<String, String> {
     let bin_dir = get_bin_dir().map_err(|e| e.to_string())?;
     let app_dir = get_app_data_dir().map_err(|e| e.to_string())?;
 
-    // GitHub release URL for llama.cpp macOS Metal build
-    // Using latest release - you may want to specify a version
-    let url = "https://github.com/ggml-org/llama.cpp/releases/download/b6972/llama-b6972-bin-macos-arm64.zip";
+    // Load llama.cpp configuration
+    let config = load_llama_config()?;
+    let platform_id = get_platform_id()?;
+    
+    // Get the platform-specific filename from config
+    let filename = config
+        .llama_cpp
+        .platforms
+        .get(&platform_id)
+        .ok_or_else(|| format!("Platform '{}' not supported in configuration", platform_id))?;
+    
+    let version = &config.llama_cpp.version;
+    
+    // Build GitHub release URL dynamically
+    let url = format!(
+        "https://github.com/ggml-org/llama.cpp/releases/download/{}/{}",
+        version, filename
+    );
 
     let binary_path = bin_dir.join("llama-server");
 
-    // Check if already downloaded
+    // Check if llama.cpp is already installed with the correct version
+    if binary_path.exists() && !needs_update(version)? {
+        return Ok(format!("llama.cpp version {} is already installed", version));
+    }
+
+    // If we need to update, remove old files
     if binary_path.exists() {
-        return Ok("llama.cpp already downloaded".to_string());
+        let old_version = read_installed_version().unwrap_or_else(|_| "unknown".to_string());
+        println!("Updating llama.cpp from version {} to {}...", old_version, version);
+        
+        // Remove old binary and related files
+        if let Err(e) = fs::remove_file(&binary_path) {
+            println!("Warning: Failed to remove old binary: {}", e);
+        }
+        
+        // Remove old .dylib and .metal files
+        if let Ok(entries) = fs::read_dir(&bin_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if let Some(ext) = path.extension() {
+                    if ext == "dylib" || ext == "metal" {
+                        if let Err(e) = fs::remove_file(&path) {
+                            println!("Warning: Failed to remove {:?}: {}", path, e);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     let zip_path = app_dir.join("llama-server.zip");
@@ -155,7 +265,10 @@ pub async fn download_llama_cpp(app: AppHandle) -> Result<String, String> {
     // Remove zip file
     fs::remove_file(&zip_path).ok();
 
-    Ok(format!("Downloaded llama.cpp to: {:?}", binary_path))
+    // Write version file to track installed version
+    write_installed_version(version)?;
+
+    Ok(format!("Downloaded llama.cpp version {} to: {:?}", version, binary_path))
 }
 
 #[tauri::command]

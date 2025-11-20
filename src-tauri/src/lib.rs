@@ -9,7 +9,7 @@ mod system;
 mod types;
 
 // Re-export command functions
-use download::{download_llama_cpp, download_model};
+use download::{check_llama_version, download_llama_cpp, download_model};
 use server::{get_server_status, start_server, stop_server};
 use system::{clear_all_data, clear_binaries, clear_models, get_app_data_path, get_system_memory_gb};
 use types::ServerState;
@@ -25,6 +25,7 @@ pub fn run() {
             process: Mutex::new(None),
         })
         .invoke_handler(tauri::generate_handler![
+            check_llama_version,
             download_llama_cpp,
             download_model,
             start_server,

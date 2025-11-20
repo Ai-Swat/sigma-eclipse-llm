@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::process::Child;
 use std::sync::Mutex;
 
@@ -19,5 +20,20 @@ pub struct DownloadProgress {
     pub total: Option<u64>,
     pub percentage: Option<f64>,
     pub message: String,
+}
+
+// LlamaCpp version configuration
+#[derive(Debug, Deserialize)]
+pub struct LlamaCppConfig {
+    pub version: String,
+    pub platforms: HashMap<String, String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct VersionsConfig {
+    #[serde(rename = "appVersion")]
+    pub app_version: String,
+    #[serde(rename = "llamaCpp")]
+    pub llama_cpp: LlamaCppConfig,
 }
 
