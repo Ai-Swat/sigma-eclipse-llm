@@ -8,7 +8,8 @@
       "macos-arm64": "llama-b7109-bin-macos-arm64.zip",
       "macos-x64": "llama-b7109-bin-macos-x64.zip",
       "linux-x64": "llama-b7109-bin-ubuntu-x64.zip",
-      "windows-x64": "llama-b7109-bin-win-cuda-cu12.2.0-x64.zip"
+      "windows-x64": "llama-b7109-bin-win-cuda-cu12.4-x64.zip",
+      "windows-arm64": "llama-b7110-bin-win-cpu-arm64.zip"
     }
   },
   "models": {
@@ -17,40 +18,20 @@
       "filename": "model-v1.0.gguf",
       "url": "https://releases.sigmabrowser.com/dev/secure-llm/model.zip"
     },
-    "model_ru": {
-      "version": "v1.0",
-      "filename": "model-ru-v1.0.gguf",
-      "url": "https://example.com/models/model-ru-v1.0.gguf"
-    },
     "model_uncensored": {
       "version": "v1.0",
       "filename": "model-uncensored-v1.0.gguf",
-      "url": "https://example.com/models/model-uncensored-v1.0.gguf"
-    },
-    "model_uncensored_ru": {
-      "version": "v1.0",
-      "filename": "model-uncensored-ru-v1.0.gguf",
-      "url": "https://example.com/models/model-uncensored-ru-v1.0.gguf"
+      "url": "https://releases.sigmabrowser.com/dev/secure-llm/model_uncensored.zip"
     },
     "model_s": {
       "version": "v1.0",
       "filename": "model-s-v1.0.gguf",
       "url": "https://releases.sigmabrowser.com/dev/secure-llm/model_s.zip"
     },
-    "model_s_ru": {
-      "version": "v1.0",
-      "filename": "model-s-ru-v1.0.gguf",
-      "url": "https://example.com/models/model-s-ru-v1.0.gguf"
-    },
     "model_s_uncensored": {
       "version": "v1.0",
       "filename": "model-s-uncensored-v1.0.gguf",
-      "url": "https://example.com/models/model-s-uncensored-v1.0.gguf"
-    },
-    "model_s_uncensored_ru": {
-      "version": "v1.0",
-      "filename": "model-s-uncensored-ru-v1.0.gguf",
-      "url": "https://example.com/models/model-s-uncensored-ru-v1.0.gguf"
+      "url": "https://releases.sigmabrowser.com/dev/secure-llm/model_s_uncensored.zip"
     }
   }
 }

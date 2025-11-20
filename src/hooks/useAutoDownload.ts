@@ -109,6 +109,10 @@ export const useAutoDownload = ({
             const result = await invoke<string>("download_model_by_name", { modelName });
             toast.success(result, { id: toastId });
             addLog(result);
+
+            // Set as active model after download
+            await invoke<string>("set_active_model_command", { modelName });
+            addLog(`Active model set to: ${modelName}`);
           } catch (error) {
             toast.error(`Error: ${error}`, { id: toastId });
             addLog(`Error: ${error}`);

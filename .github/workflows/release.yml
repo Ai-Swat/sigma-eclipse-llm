@@ -1,0 +1,168 @@
+name: Release Build with Code Signing
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS builds
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+            rust_target: aarch64-apple-darwin
+          - platform: macos-latest
+            target: x86_64-apple-darwin
+            rust_target: x86_64-apple-darwin
+          # Universal macOS build
+          - platform: macos-latest
+            target: universal-apple-darwin
+            rust_target: universal-apple-darwin
+          # Windows build
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            rust_target: x86_64-pc-windows-msvc
+          # Linux build
+          - platform: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            rust_target: x86_64-unknown-linux-gnu
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+
+      # For universal macOS build, need both targets
+      - name: Install Rust targets for universal build
+        if: matrix.target == 'universal-apple-darwin'
+        run: |
+          rustup target add aarch64-apple-darwin
+          rustup target add x86_64-apple-darwin
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install dependencies (Ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      # =====================================
+      # macOS Code Signing & Notarization
+      # =====================================
+      - name: Import Apple Code Signing Certificate (macOS)
+        if: matrix.platform == 'macos-latest'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          # Create keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          
+          # Import certificate
+          echo "$APPLE_CERTIFICATE" | base64 --decode > certificate.p12
+          security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          
+          # Clean up
+          rm certificate.p12
+
+      # =====================================
+      # Windows Code Signing
+      # =====================================
+      - name: Setup Windows Code Signing (Windows)
+        if: matrix.platform == 'windows-latest'
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          # Decode certificate
+          echo "$env:WINDOWS_CERTIFICATE" | Out-File -FilePath certificate.txt -Encoding ascii
+          certutil -decode certificate.txt certificate.pfx
+          
+          # Import to certificate store
+          $password = ConvertTo-SecureString -String "$env:WINDOWS_CERTIFICATE_PASSWORD" -Force -AsPlainText
+          Import-PfxCertificate -FilePath certificate.pfx -CertStoreLocation Cert:\CurrentUser\My -Password $password
+          
+          # Clean up
+          Remove-Item certificate.txt, certificate.pfx
+
+      # =====================================
+      # Build with Tauri Action
+      # =====================================
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # macOS notarization
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          # Windows signing
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Sigma Shield v__VERSION__'
+          releaseBody: |
+            ## What's New
+            
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
+            
+            ## Downloads
+            
+            ### macOS
+            - **Apple Silicon (M1/M2/M3)**: Download the `.dmg` file for ARM64
+            - **Intel**: Download the `.dmg` file for x86_64
+            - **Universal**: Works on both architectures
+            
+            ### Windows
+            - Download the `.msi` installer
+            
+            ### Linux
+            - Download `.deb` for Debian/Ubuntu
+            - Download `.AppImage` for universal compatibility
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.target == 'universal-apple-darwin' && '--target universal-apple-darwin' || format('--target {0}', matrix.rust_target) }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sigma-shield-${{ matrix.target }}
+          path: |
+            src-tauri/target/${{ matrix.rust_target }}/release/bundle/**/*
+            src-tauri/target/universal-apple-darwin/release/bundle/**/*
+            !**/*/.DS_Store
+          retention-days: 30
+          if-no-files-found: ignore
+

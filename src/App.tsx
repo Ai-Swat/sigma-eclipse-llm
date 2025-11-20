@@ -25,7 +25,8 @@ function App() {
   const isProduction = import.meta.env.PROD;
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [recommendedModel, setRecommendedModel] = useState("model");
+  const [baseModel, setBaseModel] = useState("model"); // model or model_s
+  const [isUncensored, setIsUncensored] = useState(false);
   const [port, setPort] = useState(() => {
     const saved = localStorage.getItem("port");
     return saved ? parseInt(saved) : 10345;
@@ -42,6 +43,9 @@ function App() {
 
   const { downloadProgress, setCurrentToastId, setDownloadProgress } = useDownloadProgress(addLog);
 
+  // Calculate current model name based on base model and uncensored flag
+  const currentModel = isUncensored ? `${baseModel}_uncensored` : baseModel;
+
   const {
     isDownloadingLlama,
     isDownloadingModel,
@@ -50,7 +54,7 @@ function App() {
     setIsDownloadingLlama,
     setIsDownloadingModel,
   } = useAutoDownload({
-    modelName: recommendedModel,
+    modelName: currentModel,
     addLog,
     setCurrentToastId,
     setDownloadProgress,
@@ -64,10 +68,49 @@ function App() {
         // eslint-disable-next-line no-console
         console.log("Recommended settings:", settings);
 
-        setRecommendedModel(settings.recommended_model);
+        setBaseModel(settings.recommended_model);
         addLog(
-          `Auto-selected model: ${settings.recommended_model} (RAM: ${settings.memory_gb} GB)`
+          `Auto-selected base model: ${settings.recommended_model} (RAM: ${settings.memory_gb} GB)`
         );
+
+        // Load uncensored preference from localStorage
+        const savedUncensored = localStorage.getItem("isUncensored");
+        const uncensored = savedUncensored === "true";
+        if (savedUncensored !== null) {
+          setIsUncensored(uncensored);
+        }
+
+        // Set active model based on uncensored preference
+        const initialModel = uncensored
+          ? `${settings.recommended_model}_uncensored`
+          : settings.recommended_model;
+
+        try {
+          // Check if the preferred model is downloaded
+          const isDownloaded = await invoke<boolean>("check_model_downloaded", {
+            modelName: initialModel,
+          });
+
+          if (isDownloaded) {
+            // Set it as active if it exists
+            await invoke<string>("set_active_model_command", { modelName: initialModel });
+            addLog(`Active model set to: ${initialModel}`);
+          } else {
+            // If preferred model not downloaded, try base model
+            const baseModelDownloaded = await invoke<boolean>("check_model_downloaded", {
+              modelName: settings.recommended_model,
+            });
+
+            if (baseModelDownloaded) {
+              await invoke<string>("set_active_model_command", {
+                modelName: settings.recommended_model,
+              });
+              addLog(`Active model set to: ${settings.recommended_model}`);
+            }
+          }
+        } catch (error) {
+          console.error("Failed to set active model:", error);
+        }
 
         // Set context size only if not manually set by user
         const savedCtxSize = localStorage.getItem("ctxSize");
@@ -88,7 +131,7 @@ function App() {
       } catch (error) {
         console.error("Failed to get recommended settings:", error);
         // Fallback to smaller model if detection fails
-        setRecommendedModel("model_s");
+        setBaseModel("model_s");
         addLog("Failed to detect system settings, using fallback: model_s");
 
         // Set fallback context size if not set
@@ -146,16 +189,20 @@ function App() {
     setIsDownloadingModel(true);
     setDownloadProgress(null);
 
-    const toastId = toast.loading(`Starting model '${recommendedModel}' download...`);
+    const toastId = toast.loading(`Starting model '${currentModel}' download...`);
     setCurrentToastId(toastId);
-    addLog(`Starting model '${recommendedModel}' download...`);
+    addLog(`Starting model '${currentModel}' download...`);
 
     try {
       const result = await invoke<string>("download_model_by_name", {
-        modelName: recommendedModel,
+        modelName: currentModel,
       });
       toast.success(result, { id: toastId });
       addLog(result);
+
+      // Set as active model after download
+      await invoke<string>("set_active_model_command", { modelName: currentModel });
+      addLog(`Set active model to: ${currentModel}`);
     } catch (error) {
       toast.error(`Error: ${error}`, { id: toastId });
       addLog(`Error: ${error}`);
@@ -163,6 +210,61 @@ function App() {
       setIsDownloadingModel(false);
       setDownloadProgress(null);
       setCurrentToastId(null);
+    }
+  };
+
+  const handleUncensoredChange = async (checked: boolean) => {
+    setIsUncensored(checked);
+    localStorage.setItem("isUncensored", checked.toString());
+
+    const newModelName = checked ? `${baseModel}_uncensored` : baseModel;
+    addLog(`Switching to ${checked ? "uncensored" : "censored"} model: ${newModelName}`);
+
+    try {
+      // Check if new model is downloaded
+      const isDownloaded = await invoke<boolean>("check_model_downloaded", {
+        modelName: newModelName,
+      });
+
+      if (!isDownloaded) {
+        // Model not downloaded, start download
+        toast.info(`Model '${newModelName}' not found, starting download...`);
+        setIsDownloadingModel(true);
+        setDownloadProgress(null);
+
+        const toastId = toast.loading(`Downloading model '${newModelName}'...`);
+        setCurrentToastId(toastId);
+
+        try {
+          const result = await invoke<string>("download_model_by_name", {
+            modelName: newModelName,
+          });
+          toast.success(result, { id: toastId });
+          addLog(result);
+        } catch (error) {
+          toast.error(`Error: ${error}`, { id: toastId });
+          addLog(`Error downloading: ${error}`);
+          // Revert checkbox on error
+          setIsUncensored(!checked);
+          localStorage.setItem("isUncensored", (!checked).toString());
+          return;
+        } finally {
+          setIsDownloadingModel(false);
+          setDownloadProgress(null);
+          setCurrentToastId(null);
+        }
+      }
+
+      // Set as active model
+      await invoke<string>("set_active_model_command", { modelName: newModelName });
+      addLog(`Active model set to: ${newModelName}`);
+      toast.success(`Switched to ${checked ? "uncensored" : "censored"} model`);
+    } catch (error) {
+      toast.error(`Error: ${error}`);
+      addLog(`Error switching model: ${error}`);
+      // Revert checkbox on error
+      setIsUncensored(!checked);
+      localStorage.setItem("isUncensored", (!checked).toString());
     }
   };
 
@@ -261,7 +363,8 @@ function App() {
       <SettingsPanel
         isOpen={isSettingsOpen}
         appDataPath={appDataPath}
-        recommendedModel={recommendedModel}
+        baseModel={baseModel}
+        isUncensored={isUncensored}
         port={port}
         ctxSize={ctxSize}
         gpuLayers={gpuLayers}
@@ -272,6 +375,7 @@ function App() {
         onClose={() => setIsSettingsOpen(false)}
         onDownloadLlama={handleDownloadLlama}
         onDownloadModel={handleDownloadModel}
+        onUncensoredChange={handleUncensoredChange}
         onPortChange={handlePortChange}
         onCtxSizeChange={handleCtxSizeChange}
         onGpuLayersChange={handleGpuLayersChange}

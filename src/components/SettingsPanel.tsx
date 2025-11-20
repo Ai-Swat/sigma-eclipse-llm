@@ -6,7 +6,8 @@ import "./SettingsPanel.css";
 interface SettingsPanelProps {
   isOpen: boolean;
   appDataPath: string;
-  recommendedModel: string;
+  baseModel: string;
+  isUncensored: boolean;
   port: number;
   ctxSize: number;
   gpuLayers: number;
@@ -17,6 +18,7 @@ interface SettingsPanelProps {
   onClose: () => void;
   onDownloadLlama: () => void;
   onDownloadModel: () => void;
+  onUncensoredChange: (checked: boolean) => void;
   onPortChange: (port: number) => void;
   onCtxSizeChange: (ctxSize: number) => void;
   onGpuLayersChange: (gpuLayers: number) => void;
@@ -27,7 +29,8 @@ interface SettingsPanelProps {
 export const SettingsPanel = ({
   isOpen,
   appDataPath,
-  recommendedModel,
+  baseModel,
+  isUncensored,
   port,
   ctxSize,
   gpuLayers,
@@ -37,6 +40,7 @@ export const SettingsPanel = ({
   onClose,
   onDownloadLlama,
   onDownloadModel,
+  onUncensoredChange,
   onPortChange,
   onCtxSizeChange,
   onGpuLayersChange,
@@ -80,10 +84,10 @@ export const SettingsPanel = ({
             )}
 
             <div className="form-group">
-              <label>Model Name:</label>
+              <label>Base Model:</label>
               <input
                 type="text"
-                value={recommendedModel}
+                value={baseModel}
                 placeholder="model"
                 disabled
                 className="readonly-input"
@@ -91,13 +95,32 @@ export const SettingsPanel = ({
               <small className="help-text">Auto-selected based on system RAM</small>
             </div>
 
+            <div className="form-group" style={{ marginTop: "1rem" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <input
+                  type="checkbox"
+                  checked={isUncensored}
+                  onChange={(e) => onUncensoredChange(e.target.checked)}
+                  disabled={isDownloadingModel}
+                  style={{ width: "auto", cursor: "pointer" }}
+                />
+                <span style={{ fontWeight: "600" }}>Uncensored Model</span>
+              </label>
+              <small className="warning-text" style={{ display: "block", marginTop: "0.25rem" }}>
+                ⚠️ Uncensored model may produce unfiltered content. Use with caution.
+              </small>
+              <small className="help-text" style={{ display: "block", marginTop: "0.25rem" }}>
+                Will download and activate uncensored version if not already available
+              </small>
+            </div>
+
             <div className="button-group">
               <button
                 className="primary-button"
                 onClick={onDownloadModel}
-                disabled={isDownloadingModel || !recommendedModel}
+                disabled={isDownloadingModel || !baseModel}
               >
-                {isDownloadingModel ? "Downloading..." : "Download Model"}
+                {isDownloadingModel ? "Downloading..." : "Download Current Model"}
               </button>
             </div>
 
