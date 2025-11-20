@@ -1,0 +1,67 @@
+# Dockerfile for building Windows version on Mac/Linux
+FROM ubuntu:22.04
+
+# Prevent interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+ENV CARGO_HOME=/usr/local/cargo
+ENV RUSTUP_HOME=/usr/local/rustup
+ENV PATH=/usr/local/cargo/bin:$PATH
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    git \
+    build-essential \
+    pkg-config \
+    libssl-dev \
+    mingw-w64 \
+    file \
+    nsis \
+    # Minimal Tauri dependencies for cross-compilation
+    libwebkit2gtk-4.1-dev \
+    libayatana-appindicator3-dev \
+    librsvg2-dev \
+    patchelf \
+    libgtk-3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Note: Using libayatana-appindicator3 (not libappindicator3) to avoid conflicts
+# NSIS is used for creating Windows installers (.exe setup files)
+
+# Install Node.js 20
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g npm@latest
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+    && chmod -R a+rwX $CARGO_HOME $RUSTUP_HOME
+
+# Add Windows target
+RUN rustup target add x86_64-pc-windows-gnu
+
+# Configure cargo for cross-compilation
+RUN mkdir -p $CARGO_HOME && \
+    echo '[target.x86_64-pc-windows-gnu]' > $CARGO_HOME/config.toml && \
+    echo 'linker = "x86_64-w64-mingw32-gcc"' >> $CARGO_HOME/config.toml && \
+    echo 'ar = "x86_64-w64-mingw32-ar"' >> $CARGO_HOME/config.toml && \
+    echo '' >> $CARGO_HOME/config.toml && \
+    echo '[target.x86_64-pc-windows-msvc]' >> $CARGO_HOME/config.toml && \
+    echo 'linker = "lld-link"' >> $CARGO_HOME/config.toml
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files first for better caching
+COPY package*.json ./
+
+# Install npm dependencies
+RUN npm ci || npm install
+
+# Copy source code
+COPY . .
+
+# Build command will be run from docker-compose
+CMD ["bash"]
+

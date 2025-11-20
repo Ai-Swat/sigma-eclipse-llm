@@ -1,0 +1,41 @@
+services:
+  build-windows:
+    build:
+      context: .
+      dockerfile: Dockerfile.windows
+    container_name: sigma-shield-windows-builder
+    volumes:
+      - .:/app
+      - cargo-cache:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
+      - node-modules:/app/node_modules
+      # target directory is mapped to host filesystem (not a volume)
+      # so build artifacts appear in your local src-tauri/target/
+    environment:
+      - CARGO_TARGET_DIR=/app/src-tauri/target
+      - RUSTFLAGS=-C target-feature=+crt-static
+    working_dir: /app
+    command: bash -c "npm run tauri build -- --target x86_64-pc-windows-gnu"
+
+  # Helper service for interactive shell
+  shell:
+    build:
+      context: .
+      dockerfile: Dockerfile.windows
+    container_name: sigma-shield-shell
+    volumes:
+      - .:/app
+      - cargo-cache:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
+      - node-modules:/app/node_modules
+      # target directory is mapped to host filesystem
+    working_dir: /app
+    stdin_open: true
+    tty: true
+    entrypoint: /bin/bash
+
+volumes:
+  cargo-cache:
+  cargo-git:
+  node-modules:
+

@@ -1,0 +1,15 @@
+# Don't copy these into Docker image
+node_modules
+dist
+src-tauri/target
+.git
+.github
+*.log
+.DS_Store
+.env
+.env.local
+
+# Keep package files
+!package.json
+!package-lock.json
+
