@@ -72,6 +72,14 @@ pub async fn start_server(
         command.process_group(0);
     }
     
+    // On Windows, hide console window
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    
     let child = command
         .spawn()
         .map_err(|e| format!("Failed to start server: {}", e))?;
