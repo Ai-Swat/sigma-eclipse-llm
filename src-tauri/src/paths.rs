@@ -23,7 +23,13 @@ pub fn get_bin_dir() -> Result<PathBuf> {
 // Get path to llama.cpp binary
 pub fn get_llama_binary_path() -> Result<PathBuf> {
     let bin_dir = get_bin_dir()?;
+    
+    #[cfg(target_os = "windows")]
+    let binary_path = bin_dir.join("llama-server.exe");
+    
+    #[cfg(not(target_os = "windows"))]
     let binary_path = bin_dir.join("llama-server");
+    
     Ok(binary_path)
 }
 
@@ -46,7 +52,18 @@ pub fn get_model_dir(model_name: &str) -> Result<PathBuf> {
 // Get path to model file (.gguf)
 pub fn get_model_file_path(model_name: &str) -> Result<PathBuf> {
     let model_dir = get_model_dir(model_name)?;
+    
     // Look for any .gguf file in the model directory
+    if let Ok(entries) = fs::read_dir(&model_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) == Some("gguf") {
+                return Ok(path);
+            }
+        }
+    }
+    
+    // Fallback: if no .gguf found, return default name
     Ok(model_dir.join("model.gguf"))
 }
 

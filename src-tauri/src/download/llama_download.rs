@@ -1,5 +1,5 @@
 use super::download_utils::{get_platform_id, load_config};
-use crate::paths::{get_app_data_dir, get_bin_dir};
+use crate::paths::{get_app_data_dir, get_bin_dir, get_llama_binary_path};
 use crate::types::DownloadProgress;
 use futures_util::StreamExt;
 use std::fs;
@@ -39,11 +39,19 @@ fn needs_update(current_version: &str) -> Result<bool, String> {
 
 /// Remove old llama.cpp files
 fn cleanup_old_llama_files(bin_dir: &std::path::Path) -> Result<(), String> {
-    let binary_path = bin_dir.join("llama-server");
+    // Try both with and without .exe extension for cross-platform compatibility
+    #[cfg(target_os = "windows")]
+    let binary_names = vec!["llama-server.exe", "llama-server"];
+    
+    #[cfg(not(target_os = "windows"))]
+    let binary_names = vec!["llama-server"];
 
-    if binary_path.exists() {
-        if let Err(e) = fs::remove_file(&binary_path) {
-            println!("Warning: Failed to remove old binary: {}", e);
+    for name in binary_names {
+        let binary_path = bin_dir.join(name);
+        if binary_path.exists() {
+            if let Err(e) = fs::remove_file(&binary_path) {
+                println!("Warning: Failed to remove old binary {}: {}", name, e);
+            }
         }
     }
 
@@ -83,9 +91,11 @@ fn extract_llama_archive(
             continue;
         }
 
-        // Extract llama-server, .dylib files, and .metal files
+        // Extract llama-server (with or without .exe), .dylib files, .dll files, and .metal files
         let should_extract = file_name.ends_with("llama-server")
+            || file_name.ends_with("llama-server.exe")
             || file_name.ends_with(".dylib")
+            || file_name.ends_with(".dll")
             || file_name.ends_with(".metal");
 
         if should_extract {
@@ -104,7 +114,8 @@ fn extract_llama_archive(
             std::io::copy(&mut file, &mut outfile)
                 .map_err(|e| format!("Failed to extract file: {}", e))?;
 
-            if filename == "llama-server" {
+            // Check if this is the server binary (with or without .exe)
+            if filename == "llama-server" || filename == "llama-server.exe" {
                 found_server = true;
             }
         }
@@ -149,7 +160,7 @@ pub async fn download_llama_cpp(app: AppHandle) -> Result<String, String> {
         version, filename
     );
 
-    let binary_path = bin_dir.join("llama-server");
+    let binary_path = get_llama_binary_path().map_err(|e| e.to_string())?;
 
     // Check if llama.cpp is already installed with the correct version
     if binary_path.exists() && !needs_update(version)? {

@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
-import { BaseDirectory, exists } from "@tauri-apps/plugin-fs";
 
 interface UseAutoDownloadProps {
   modelName: string;
@@ -35,23 +34,22 @@ export const useAutoDownload = ({
       try {
         let wasSomeDownloads = false;
 
-        // Check if llama-server binary exists
-        const llamaBinaryPath = `./bin/llama-server`;
-        const llamaExists = await exists(llamaBinaryPath, { baseDir: BaseDirectory.AppData });
-
-        // Check if llama.cpp needs update (even if it exists)
+        // Check if llama.cpp needs update using backend command (works cross-platform)
         let needsLlamaUpdate = false;
-        if (llamaExists) {
-          try {
-            needsLlamaUpdate = await invoke<boolean>("check_llama_version");
-            if (!needsLlamaUpdate) {
-              setIsLlamaAlreadyDownloaded(true);
-            }
-          } catch (error) {
-            console.error("Failed to check llama version:", error);
-            needsLlamaUpdate = false;
+        let llamaExists = false;
+        
+        try {
+          needsLlamaUpdate = await invoke<boolean>("check_llama_version");
+          // If check_llama_version returns false, llama exists and is up to date
+          llamaExists = true;
+          if (!needsLlamaUpdate) {
             setIsLlamaAlreadyDownloaded(true);
           }
+        } catch (error) {
+          // If check fails, assume llama doesn't exist
+          console.log("llama.cpp not found or check failed, will download");
+          needsLlamaUpdate = true;
+          llamaExists = false;
         }
 
         // Check if model exists using backend command
