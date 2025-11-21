@@ -1,4 +1,4 @@
-use super::download_utils::load_config;
+use super::download_utils::{load_config, verify_sha256};
 use crate::paths::{get_model_dir, is_model_downloaded};
 use crate::types::{DownloadProgress, ModelInfo};
 use futures_util::StreamExt;
@@ -35,9 +35,9 @@ async fn download_with_progress(
     let total_size = response.content_length();
 
     if let Some(size) = total_size {
-        println!("Model size: {:.2} MB", size as f64 / 1_048_576.0);
+        log::info!("Model size: {:.2} MB", size as f64 / 1_048_576.0);
     } else {
-        println!("Model size: unknown");
+        log::info!("Model size: unknown");
     }
 
     // Emit initial progress
@@ -60,7 +60,7 @@ async fn download_with_progress(
     let mut last_emit_mb = 0u64;
     let mut last_log_mb = 0u64;
 
-    println!("Starting download stream...");
+    log::info!("Starting download stream...");
 
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.map_err(|e| format!("Failed to read chunk: {}", e))?;
@@ -77,13 +77,13 @@ async fn download_with_progress(
             last_log_mb = current_log_mb;
             let percentage = total_size.map(|total| (downloaded as f64 / total as f64) * 100.0);
             if let Some(pct) = percentage {
-                println!(
+                log::info!(
                     "Downloaded: {:.2} MB ({:.1}%)",
                     downloaded as f64 / 1_048_576.0,
                     pct
                 );
             } else {
-                println!("Downloaded: {:.2} MB", downloaded as f64 / 1_048_576.0);
+                log::info!("Downloaded: {:.2} MB", downloaded as f64 / 1_048_576.0);
             }
         }
 
@@ -120,7 +120,7 @@ async fn download_with_progress(
         }
     }
 
-    println!(
+    log::info!(
         "Download completed! Total: {:.2} MB",
         downloaded as f64 / 1_048_576.0
     );
@@ -144,7 +144,7 @@ fn extract_model_archive(
         zip::ZipArchive::new(file).map_err(|e| format!("Failed to read zip archive: {}", e))?;
 
     let archive_len = archive.len();
-    println!("Archive contains {} files", archive_len);
+    log::info!("Archive contains {} files", archive_len);
 
     for i in 0..archive_len {
         let mut file = archive
@@ -157,11 +157,11 @@ fn extract_model_archive(
         };
 
         if file.name().ends_with('/') {
-            println!("Creating directory: {}", file.name());
+            log::info!("Creating directory: {}", file.name());
             fs::create_dir_all(&outpath)
                 .map_err(|e| format!("Failed to create directory: {}", e))?;
         } else {
-            println!(
+            log::info!(
                 "Extracting file {}/{}: {} ({:.2} MB)",
                 i + 1,
                 archive_len,
@@ -179,7 +179,7 @@ fn extract_model_archive(
         }
     }
 
-    println!("Extraction completed successfully!");
+    log::info!("Extraction completed successfully!");
     Ok(())
 }
 
@@ -187,19 +187,27 @@ fn extract_model_archive(
 async fn download_model_common(
     model_name: &str,
     model_url: &str,
+    expected_sha256: &str,
     app: AppHandle,
 ) -> Result<String, String> {
     let model_dir = get_model_dir(model_name).map_err(|e| e.to_string())?;
     let zip_path = model_dir.join("model.zip");
 
-    println!(
+    log::info!(
         "Starting model '{}' download from: {}",
         model_name, model_url
     );
-    println!("Download destination: {:?}", zip_path);
+    log::info!("Download destination: {:?}", zip_path);
 
     // Download with progress
     let downloaded = download_with_progress(model_url, &zip_path, model_name, &app).await?;
+
+    // Verify SHA-256 checksum
+    if let Err(e) = verify_sha256(&zip_path, expected_sha256) {
+        // Remove corrupted file
+        fs::remove_file(&zip_path).ok();
+        return Err(format!("Model '{}' checksum verification failed: {}", model_name, e));
+    }
 
     // Emit extraction progress
     let _ = app.emit(
@@ -212,16 +220,16 @@ async fn download_model_common(
         },
     );
 
-    println!("Starting extraction...");
+    log::info!("Starting extraction...");
 
     // Extract archive
     extract_model_archive(&zip_path, &model_dir)?;
 
     // Remove zip file
-    println!("Removing temporary zip file...");
+    log::info!("Removing temporary zip file...");
     fs::remove_file(&zip_path).ok();
 
-    println!("Model '{}' ready at: {:?}", model_name, model_dir);
+    log::info!("Model '{}' ready at: {:?}", model_name, model_dir);
     Ok(format!(
         "Model '{}' downloaded and extracted to: {:?}",
         model_name, model_dir
@@ -233,7 +241,7 @@ pub async fn download_model_by_name(
     model_name: String,
     app: AppHandle,
 ) -> Result<String, String> {
-    // Load config to get model URL
+    // Load config to get model URL and SHA-256
     let config = load_config()?;
 
     let model_config = config
@@ -242,8 +250,9 @@ pub async fn download_model_by_name(
         .ok_or_else(|| format!("Model '{}' not found in configuration", model_name))?;
 
     let model_url = &model_config.url;
+    let expected_sha256 = &model_config.sha256;
 
-    download_model_common(&model_name, model_url, app).await
+    download_model_common(&model_name, model_url, expected_sha256, app).await
 }
 
 

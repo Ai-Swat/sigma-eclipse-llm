@@ -63,7 +63,10 @@ pub async fn start_server(
         .arg("--ctx-size")
         .arg(ctx_size.to_string())
         .arg("--n-gpu-layers")
-        .arg(gpu_layers.to_string());
+        .arg(gpu_layers.to_string())
+        .arg("--flash-attn").arg("auto")
+        .arg("--batch-size").arg("2048")
+        .arg("--ubatch-size").arg("512");
     
     // On Unix, create a new process group so we can kill the entire group
     #[cfg(unix)]
@@ -72,13 +75,14 @@ pub async fn start_server(
         command.process_group(0);
     }
     
-    // On Windows, hide console window
+    // On Windows, hide console window and add CUDA paths
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         command.creation_flags(CREATE_NO_WINDOW);
-    }
+        
+      }
     
     let child = command
         .spawn()

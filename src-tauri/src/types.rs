@@ -27,6 +27,8 @@ pub struct DownloadProgress {
 pub struct LlamaCppConfig {
     pub version: String,
     pub platforms: HashMap<String, String>,
+    #[serde(default)]
+    pub sha256: HashMap<String, String>,
 }
 
 // Model configuration from versions.json
@@ -35,6 +37,8 @@ pub struct ModelConfig {
     pub version: String,
     pub filename: String,
     pub url: String,
+    #[serde(default)]
+    pub sha256: String,
 }
 
 #[derive(Debug, Deserialize)]

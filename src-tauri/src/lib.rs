@@ -17,14 +17,34 @@ use download::{
 use server::{get_server_status, start_server, stop_server};
 use settings::{get_active_model_command, set_active_model_command};
 use system::{
-    clear_all_data, clear_binaries, clear_models, get_app_data_path, get_recommended_settings,
-    get_system_memory_gb,
+    clear_all_data, clear_binaries, clear_models, get_app_data_path, get_logs_path,
+    get_recommended_settings, get_system_memory_gb,
 };
 use types::ServerState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .targets([
+                    // Write to file in app data directory
+                    tauri_plugin_log::Target::new(
+                        tauri_plugin_log::TargetKind::Folder {
+                            path: std::path::PathBuf::from("logs"),
+                            file_name: Some(format!("sigma-shield-{}.log", 
+                                chrono::Local::now().format("%Y%m%d-%H%M%S")
+                            ))
+                        }
+                    ),
+                    // Also output to stdout for debugging
+                    tauri_plugin_log::Target::new(
+                        tauri_plugin_log::TargetKind::Stdout
+                    ),
+                ])
+                .level(log::LevelFilter::Info)
+                .build()
+        )
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
@@ -45,6 +65,7 @@ pub fn run() {
             stop_server,
             get_server_status,
             get_app_data_path,
+            get_logs_path,
             get_system_memory_gb,
             get_recommended_settings,
             clear_binaries,
@@ -56,7 +77,7 @@ pub fn run() {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
                 window.hide().unwrap_or_else(|e| {
-                    eprintln!("Failed to hide window: {}", e);
+                    log::error!("Failed to hide window: {}", e);
                 });
             }
         })
@@ -78,12 +99,12 @@ pub fn run() {
             }
             // Handle all exit scenarios - stop server before quitting
             tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit => {
-                eprintln!("App is exiting, stopping server...");
+                log::info!("App is exiting, stopping server...");
                 // Get server state and stop server if running
                 if let Some(state) = app_handle.try_state::<ServerState>() {
                     let mut process_guard = state.process.lock().unwrap();
                     if let Some(mut child) = process_guard.take() {
-                        eprintln!("Killing server process...");
+                        log::info!("Killing server process...");
                         
                         // On Unix, kill the entire process group
                         #[cfg(unix)]
@@ -98,7 +119,7 @@ pub fn run() {
                         
                         let _ = child.kill();
                         let _ = child.wait();
-                        eprintln!("Server process stopped");
+                        log::info!("Server process stopped");
                     }
                 }
             }

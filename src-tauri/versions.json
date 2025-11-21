@@ -3,35 +3,42 @@
   "description": "Version mapping for Sigma Shield LLM external dependencies",
   "appVersion": "0.1.0",
   "llamaCpp": {
-    "version": "b7111",
+    "version": "b7120",
     "platforms": {
-      "macos-arm64": "llama-b7111-bin-macos-arm64.zip",
-      "macos-x64": "llama-b7111-bin-macos-x64.zip",
-      "linux-x64": "llama-b7111-bin-ubuntu-x64.zip",
-      "windows-x64": "llama-b7111-bin-win-cuda-12.4-x64.zip",
-      "windows-arm64": "llama-b7111-bin-win-cpu-arm64.zip"
+      "macos-arm64": "llama-b7120-bin-macos-arm64.zip",
+      "windows-x64": "llama-b7120-bin-win-vulkan-x64.zip",
+      "windows-arm64": "llama-b7120-bin-win-cpu-arm64.zip"
+    },
+    "sha256": {
+      "macos-arm64": "4d675c87ade154145bd7a2a5de5c9f0c18ca5963804edc2d65d95423589e952b",
+      "windows-x64": "742b97a9dd0fa2bda68a2c49c410164da84a2fdb97b7734ef7b6014607af67aa",
+      "windows-arm64": "86066abeacdb52f2dbde0cb943412157455f781464c41da257d14142dde51e04"
     }
   },
   "models": {
     "model": {
       "version": "v1.0",
       "filename": "model-v1.0.gguf",
-      "url": "https://releases.sigmabrowser.com/dev/secure-llm/model.zip"
+      "url": "https://releases.sigmabrowser.com/dev/secure-llm/model.zip",
+      "sha256": "907ba4b9b9ae56726cac34cfa66be9d493f147e4823271f5120c6ad8ccf3a959"
     },
     "model_uncensored": {
       "version": "v1.0",
       "filename": "model-uncensored-v1.0.gguf",
-      "url": "https://releases.sigmabrowser.com/dev/secure-llm/model_uncensored.zip"
+      "url": "https://releases.sigmabrowser.com/dev/secure-llm/model_uncensored.zip",
+      "sha256": "21807105312d6494103934798c0da638e07d10278bfd29b715aba355c37f4864"
     },
     "model_s": {
       "version": "v1.0",
       "filename": "model-s-v1.0.gguf",
-      "url": "https://releases.sigmabrowser.com/dev/secure-llm/model_s.zip"
+      "url": "https://releases.sigmabrowser.com/dev/secure-llm/model_s.zip",
+      "sha256": "e5b0282323ebc54db43d0a8b91e5869555f9a6ee6811a893fa1adc47a9382fcd"
     },
     "model_s_uncensored": {
       "version": "v1.0",
       "filename": "model-s-uncensored-v1.0.gguf",
-      "url": "https://releases.sigmabrowser.com/dev/secure-llm/model_s_uncensored.zip"
+      "url": "https://releases.sigmabrowser.com/dev/secure-llm/model_s_uncensored.zip",
+      "sha256": "afa391b5d1fddd67e3c340ccbd9484ed7d97b1bf43dd17e5068de89fc282b267"
     }
   }
 }

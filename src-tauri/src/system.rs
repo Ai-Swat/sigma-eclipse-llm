@@ -12,6 +12,13 @@ pub fn get_app_data_path() -> Result<String, String> {
 }
 
 #[tauri::command]
+pub fn get_logs_path() -> Result<String, String> {
+    get_app_data_dir()
+        .map(|p| p.join("logs").to_string_lossy().to_string())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub fn get_system_memory_gb() -> Result<u64, String> {
     let mut sys = System::new_all();
     sys.refresh_memory();
@@ -45,7 +52,7 @@ pub fn get_recommended_settings() -> Result<RecommendedSettings, String> {
     // GPU layers - default to 41 (all layers on GPU if available)
     let recommended_gpu_layers = 41;
 
-    println!(
+    log::info!(
         "Recommended settings: RAM={}GB, model={}, ctx={}, gpu_layers={}",
         memory_gb, recommended_model, recommended_ctx_size, recommended_gpu_layers
     );
@@ -84,7 +91,7 @@ pub async fn clear_binaries(state: State<'_, ServerState>) -> Result<String, Str
     if bin_dir.exists() {
         fs::remove_dir_all(&bin_dir)
             .map_err(|e| format!("Failed to remove bin directory: {}", e))?;
-        println!("Removed bin directory: {:?}", bin_dir);
+        log::info!("Removed bin directory: {:?}", bin_dir);
     }
 
     Ok("Binaries cleared successfully".to_string())
@@ -97,7 +104,7 @@ pub async fn clear_models() -> Result<String, String> {
     if models_dir.exists() {
         fs::remove_dir_all(&models_dir)
             .map_err(|e| format!("Failed to remove models directory: {}", e))?;
-        println!("Removed models directory: {:?}", models_dir);
+        log::info!("Removed models directory: {:?}", models_dir);
     }
 
     Ok("Models cleared successfully".to_string())
@@ -129,9 +136,10 @@ pub async fn clear_all_data(state: State<'_, ServerState>) -> Result<String, Str
     if app_dir.exists() {
         fs::remove_dir_all(&app_dir)
             .map_err(|e| format!("Failed to remove app data directory: {}", e))?;
-        println!("Removed app data directory: {:?}", app_dir);
+        log::info!("Removed app data directory: {:?}", app_dir);
     }
 
     Ok("All data cleared successfully".to_string())
 }
+
 

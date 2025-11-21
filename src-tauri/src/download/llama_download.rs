@@ -1,4 +1,4 @@
-use super::download_utils::{get_platform_id, load_config};
+use super::download_utils::{get_platform_id, load_config, verify_sha256};
 use crate::paths::{get_app_data_dir, get_bin_dir, get_llama_binary_path};
 use crate::types::DownloadProgress;
 use futures_util::StreamExt;
@@ -50,7 +50,7 @@ fn cleanup_old_llama_files(bin_dir: &std::path::Path) -> Result<(), String> {
         let binary_path = bin_dir.join(name);
         if binary_path.exists() {
             if let Err(e) = fs::remove_file(&binary_path) {
-                println!("Warning: Failed to remove old binary {}: {}", name, e);
+                log::warn!("Failed to remove old binary {}: {}", name, e);
             }
         }
     }
@@ -62,7 +62,7 @@ fn cleanup_old_llama_files(bin_dir: &std::path::Path) -> Result<(), String> {
             if let Some(ext) = path.extension() {
                 if ext == "dylib" || ext == "metal" {
                     if let Err(e) = fs::remove_file(&path) {
-                        println!("Warning: Failed to remove {:?}: {}", path, e);
+                        log::warn!("Failed to remove {:?}: {}", path, e);
                     }
                 }
             }
@@ -107,7 +107,7 @@ fn extract_llama_archive(
 
             let output_path = bin_dir.join(filename);
 
-            println!("Extracting: {} -> {:?}", file_name, output_path);
+            log::info!("Extracting: {} -> {:?}", file_name, output_path);
 
             let mut outfile = std::fs::File::create(&output_path)
                 .map_err(|e| format!("Failed to create output file: {}", e))?;
@@ -170,7 +170,7 @@ pub async fn download_llama_cpp(app: AppHandle) -> Result<String, String> {
     // If we need to update, remove old files
     if binary_path.exists() {
         let old_version = read_installed_version().unwrap_or_else(|_| "unknown".to_string());
-        println!(
+        log::info!(
             "Updating llama.cpp from version {} to {}...",
             old_version, version
         );
@@ -232,6 +232,20 @@ pub async fn download_llama_cpp(app: AppHandle) -> Result<String, String> {
     file.flush()
         .await
         .map_err(|e| format!("Failed to flush file: {}", e))?;
+
+    // Verify SHA-256 checksum
+    let expected_hash = config
+        .llama_cpp
+        .sha256
+        .get(&platform_id)
+        .map(|s| s.as_str())
+        .unwrap_or("");
+    
+    if let Err(e) = verify_sha256(&zip_path, expected_hash) {
+        // Remove corrupted file
+        fs::remove_file(&zip_path).ok();
+        return Err(format!("Checksum verification failed: {}", e));
+    }
 
     // Emit extraction progress
     let _ = app.emit(
