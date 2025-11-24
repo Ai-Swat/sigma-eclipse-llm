@@ -1,7 +1,8 @@
 use crate::paths::{get_llama_binary_path, get_model_file_path};
 use crate::settings::get_active_model;
 use crate::types::{ServerState, ServerStatus};
-use std::process::Command;
+use std::io::{BufRead, BufReader};
+use std::process::{Command, Stdio};
 use tauri::State;
 
 #[tauri::command]
@@ -66,7 +67,9 @@ pub async fn start_server(
         .arg(gpu_layers.to_string())
         .arg("--flash-attn").arg("auto")
         .arg("--batch-size").arg("2048")
-        .arg("--ubatch-size").arg("512");
+        .arg("--ubatch-size").arg("512")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
     
     // On Unix, create a new process group so we can kill the entire group
     #[cfg(unix)]
@@ -84,9 +87,32 @@ pub async fn start_server(
         
       }
     
-    let child = command
+    let mut child = command
         .spawn()
         .map_err(|e| format!("Failed to start server: {}", e))?;
+
+    // Capture stdout and stderr for logging
+    if let Some(stdout) = child.stdout.take() {
+        std::thread::spawn(move || {
+            let reader = BufReader::new(stdout);
+            for line in reader.lines() {
+                if let Ok(line) = line {
+                    log::info!("[llama.cpp] {}", line);
+                }
+            }
+        });
+    }
+
+    if let Some(stderr) = child.stderr.take() {
+        std::thread::spawn(move || {
+            let reader = BufReader::new(stderr);
+            for line in reader.lines() {
+                if let Ok(line) = line {
+                    log::warn!("[llama.cpp] {}", line);
+                }
+            }
+        });
+    }
 
     *process_guard = Some(child);
 
