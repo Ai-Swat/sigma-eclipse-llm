@@ -6,6 +6,16 @@ use std::fs;
 use tauri::{AppHandle, Emitter};
 use tokio::io::AsyncWriteExt;
 
+/// Create HTTP client for llama.cpp downloads
+fn create_http_client() -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        .redirect(reqwest::redirect::Policy::limited(10))
+        .timeout(std::time::Duration::from_secs(300))
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))
+}
+
 /// Get the path to the version file
 fn get_version_file_path() -> Result<std::path::PathBuf, String> {
     let bin_dir = get_bin_dir().map_err(|e| e.to_string())?;
@@ -174,12 +184,39 @@ pub async fn download_llama_cpp(app: AppHandle) -> Result<String, String> {
 
     let zip_path = app_dir.join("llama-server.zip");
 
+    log::info!("Downloading llama.cpp from: {}", url);
+
+    // Create HTTP client with proper headers
+    let client = create_http_client()?;
+
     // Download zip file with streaming
-    let response = reqwest::get(url)
+    let response = client
+        .get(url)
+        .header("Accept", "*/*")
+        .header("Accept-Encoding", "identity")
+        .send()
         .await
         .map_err(|e| format!("Failed to download: {}", e))?;
 
+    // Check HTTP status
+    let status = response.status();
+    log::info!("HTTP response status: {}", status);
+    
+    if !status.is_success() {
+        return Err(format!("HTTP error: {} - {}", status.as_u16(), status.canonical_reason().unwrap_or("Unknown")));
+    }
+
     let total_size = response.content_length();
+    
+    if let Some(size) = total_size {
+        log::info!("llama.cpp archive size: {:.2} MB", size as f64 / 1_048_576.0);
+    } else {
+        log::warn!("llama.cpp archive size: unknown (no Content-Length header)");
+    }
+
+    // Log some response headers for debugging
+    log::info!("Content-Type: {:?}", response.headers().get("content-type"));
+    log::info!("Content-Encoding: {:?}", response.headers().get("content-encoding"));
 
     // Emit initial progress
     let _ = app.emit(
@@ -224,9 +261,19 @@ pub async fn download_llama_cpp(app: AppHandle) -> Result<String, String> {
         );
     }
 
+    // Flush and sync file to ensure all data is written to disk
     file.flush()
         .await
         .map_err(|e| format!("Failed to flush file: {}", e))?;
+    
+    file.sync_all()
+        .await
+        .map_err(|e| format!("Failed to sync file: {}", e))?;
+    
+    // Explicitly close file before verification to ensure all data is persisted
+    drop(file);
+    
+    log::info!("File downloaded successfully: {} bytes", downloaded);
 
     // Verify SHA-256 checksum
     let expected_hash = &platform_config.sha256;

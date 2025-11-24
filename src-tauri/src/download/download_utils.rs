@@ -35,12 +35,19 @@ pub fn verify_sha256(file_path: &std::path::Path, expected_hash: &str) -> Result
         return Ok(());
     }
     
+    // Get file size for logging
+    let file_size = std::fs::metadata(file_path)
+        .map(|m| m.len())
+        .unwrap_or(0);
+    
+    log::info!("Verifying SHA-256 for file: {:?}, size: {} bytes", file_path, file_size);
+    
     let calculated_hash = calculate_sha256(file_path)?;
     
     if calculated_hash.to_lowercase() != expected_hash.to_lowercase() {
         return Err(format!(
-            "SHA-256 checksum verification failed!\nExpected: {}\nGot: {}",
-            expected_hash, calculated_hash
+            "SHA-256 checksum verification failed!\nFile: {:?}\nSize: {} bytes\nExpected: {}\nGot: {}",
+            file_path, file_size, expected_hash, calculated_hash
         ));
     }
     

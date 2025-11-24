@@ -9,8 +9,9 @@ use tokio::io::AsyncWriteExt;
 /// Create HTTP client for model downloads
 fn create_http_client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
-        .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         .redirect(reqwest::redirect::Policy::limited(10))
+        .timeout(std::time::Duration::from_secs(600)) // 10 minutes for large models
         .build()
         .map_err(|e| format!("Failed to create HTTP client: {}", e))
 }
@@ -24,6 +25,8 @@ async fn download_with_progress(
 ) -> Result<u64, String> {
     let client = create_http_client()?;
 
+    log::info!("Downloading model '{}' from: {}", model_name, url);
+
     let response = client
         .get(url)
         .header("Accept", "*/*")
@@ -32,13 +35,25 @@ async fn download_with_progress(
         .await
         .map_err(|e| format!("Failed to download model: {}", e))?;
 
+    // Check HTTP status
+    let status = response.status();
+    log::info!("HTTP response status: {}", status);
+    
+    if !status.is_success() {
+        return Err(format!("HTTP error: {} - {}", status.as_u16(), status.canonical_reason().unwrap_or("Unknown")));
+    }
+
     let total_size = response.content_length();
 
     if let Some(size) = total_size {
         log::info!("Model size: {:.2} MB", size as f64 / 1_048_576.0);
     } else {
-        log::info!("Model size: unknown");
+        log::warn!("Model size: unknown (no Content-Length header)");
     }
+    
+    // Log some response headers for debugging
+    log::info!("Content-Type: {:?}", response.headers().get("content-type"));
+    log::info!("Content-Encoding: {:?}", response.headers().get("content-encoding"));
 
     // Emit initial progress
     let _ = app.emit(
@@ -124,9 +139,19 @@ async fn download_with_progress(
         downloaded as f64 / 1_048_576.0
     );
 
+    // Flush and sync file to ensure all data is written to disk
     file.flush()
         .await
         .map_err(|e| format!("Failed to flush file: {}", e))?;
+    
+    file.sync_all()
+        .await
+        .map_err(|e| format!("Failed to sync file: {}", e))?;
+    
+    // Explicitly close file before verification to ensure all data is persisted
+    drop(file);
+    
+    log::info!("File synced successfully: {} bytes", downloaded);
 
     Ok(downloaded)
 }
