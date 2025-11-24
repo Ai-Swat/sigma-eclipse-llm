@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 
@@ -19,17 +19,23 @@ export const useAutoDownload = ({
   const [isDownloadingModel, setIsDownloadingModel] = useState(false);
   const [isModelAlreadyDownloaded, setIsModelAlreadyDownloaded] = useState(false);
   const [isLlamaAlreadyDownloaded, setIsLlamaAlreadyDownloaded] = useState(false);
+  
+  // Use ref to track if download is already in progress (persists between renders)
+  const llamaDownloadInProgress = useRef(false);
+  const modelDownloadInProgress = useRef(false);
+  const processedModels = useRef(new Set<string>());
 
   // Check and auto-download required files on startup
   useEffect(() => {
     // Don't run if modelName is not set yet
     if (!modelName) return;
 
-    let hasRun = false;
+    // Prevent processing the same model multiple times
+    if (processedModels.current.has(modelName)) return;
 
     const checkAndDownloadFiles = async () => {
-      if (hasRun) return; // Prevent double execution
-      hasRun = true;
+      // Mark this model as being processed
+      processedModels.current.add(modelName);
 
       try {
         let wasSomeDownloads = false;
@@ -64,8 +70,10 @@ export const useAutoDownload = ({
         }
 
         // Auto-download llama.cpp if missing or needs update
-        if ((!llamaExists || needsLlamaUpdate) && !isDownloadingLlama) {
+        if ((!llamaExists || needsLlamaUpdate) && !llamaDownloadInProgress.current) {
           wasSomeDownloads = true;
+          llamaDownloadInProgress.current = true; // Set ref immediately to prevent race condition
+          
           const message = needsLlamaUpdate 
             ? "llama.cpp update available, downloading new version..."
             : "llama.cpp not found, downloading automatically...";
@@ -90,12 +98,15 @@ export const useAutoDownload = ({
             setIsDownloadingLlama(false);
             setDownloadProgress(null);
             setCurrentToastId(null);
+            llamaDownloadInProgress.current = false; // Reset ref after completion
           }
         }
 
         // Auto-download model if missing
-        if (!modelExists && modelName && !isDownloadingModel) {
+        if (!modelExists && modelName && !modelDownloadInProgress.current) {
           wasSomeDownloads = true;
+          modelDownloadInProgress.current = true; // Set ref immediately to prevent race condition
+          
           addLog(`Model '${modelName}' not found, downloading automatically...`);
           setIsDownloadingModel(true);
           setDownloadProgress(null);
@@ -118,6 +129,7 @@ export const useAutoDownload = ({
             setIsDownloadingModel(false);
             setDownloadProgress(null);
             setCurrentToastId(null);
+            modelDownloadInProgress.current = false; // Reset ref after completion
           }
         }
 
