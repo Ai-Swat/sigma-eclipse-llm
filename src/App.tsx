@@ -25,7 +25,7 @@ function App() {
   const isProduction = import.meta.env.PROD;
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [baseModel, setBaseModel] = useState("model"); // model or model_s
+  const [baseModel, setBaseModel] = useState(""); // model or model_s
   const [isUncensored, setIsUncensored] = useState(false);
   const [port, setPort] = useState(() => {
     const saved = localStorage.getItem("port");
