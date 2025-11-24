@@ -44,7 +44,7 @@
     ],
     "macOS": {
       "frameworks": [],
-      "minimumSystemVersion": "10.13",
+      "minimumSystemVersion": "10.14",
       "exceptionDomain": "",
       "signingIdentity": null,
       "providerShortName": null,

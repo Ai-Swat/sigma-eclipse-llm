@@ -24,17 +24,19 @@ use types::ServerState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let log_file_name = format!(
+        "sigma-shield-{}.log",
+        chrono::Local::now().format("%Y%m%d-%H%M%S")
+    );
+
     let app = tauri::Builder::default()
         .plugin(
             tauri_plugin_log::Builder::new()
                 .targets([
                     // Write to file in app data directory
                     tauri_plugin_log::Target::new(
-                        tauri_plugin_log::TargetKind::Folder {
-                            path: std::path::PathBuf::from("logs"),
-                            file_name: Some(format!("sigma-shield-{}.log", 
-                                chrono::Local::now().format("%Y%m%d-%H%M%S")
-                            ))
+                        tauri_plugin_log::TargetKind::LogDir {
+                            file_name: Some(log_file_name),
                         }
                     ),
                     // Also output to stdout for debugging
