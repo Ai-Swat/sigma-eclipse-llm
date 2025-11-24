@@ -94,11 +94,10 @@ async fn download_with_progress(
             let percentage = total_size.map(|total| (downloaded as f64 / total as f64) * 100.0);
             let message = if let Some(total) = total_size {
                 format!(
-                    "Downloading model '{}': {:.2} MB / {:.2} MB ({:.1}%)",
+                    "Downloading model '{}': {:.2} MB / {:.2} MB",
                     model_name,
                     downloaded as f64 / 1_048_576.0,
                     total as f64 / 1_048_576.0,
-                    percentage.unwrap_or(0.0)
                 )
             } else {
                 format!(

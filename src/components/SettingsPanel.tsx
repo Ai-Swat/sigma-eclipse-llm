@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { DownloadProgress, ServerStatus } from "../types";
 import { ProgressBar } from "./ProgressBar";
 import CloseIcon from "../icons/x-close.svg?react";
@@ -47,6 +48,24 @@ export const SettingsPanel = ({
   onClearAllData,
   isProduction,
 }: SettingsPanelProps) => {
+  // Local state for input values to allow empty strings during editing
+  const [portValue, setPortValue] = useState(port.toString());
+  const [ctxSizeValue, setCtxSizeValue] = useState(ctxSize.toString());
+  const [gpuLayersValue, setGpuLayersValue] = useState(gpuLayers.toString());
+
+  // Sync local state with props when they change externally
+  useEffect(() => {
+    setPortValue(port.toString());
+  }, [port]);
+
+  useEffect(() => {
+    setCtxSizeValue(ctxSize.toString());
+  }, [ctxSize]);
+
+  useEffect(() => {
+    setGpuLayersValue(gpuLayers.toString());
+  }, [gpuLayers]);
+
   if (!isOpen) return null;
 
   return (
@@ -133,8 +152,24 @@ export const SettingsPanel = ({
               <label>Port:</label>
               <input
                 type="number"
-                value={port}
-                onChange={(e) => onPortChange(parseInt(e.target.value) || 10345)}
+                value={portValue}
+                onChange={(e) => {
+                  setPortValue(e.target.value);
+                  const parsed = parseInt(e.target.value);
+                  if (!isNaN(parsed)) {
+                    onPortChange(parsed);
+                  }
+                }}
+                onBlur={() => {
+                  const value = parseInt(portValue);
+                  if (isNaN(value) || value < 1024) {
+                    onPortChange(10345);
+                    setPortValue('10345');
+                  } else if (value > 65535) {
+                    onPortChange(65535);
+                    setPortValue('65535');
+                  }
+                }}
                 min="1024"
                 max="65535"
               />
@@ -144,8 +179,24 @@ export const SettingsPanel = ({
               <label>Context Size:</label>
               <input
                 type="number"
-                value={ctxSize}
-                onChange={(e) => onCtxSizeChange(parseInt(e.target.value) || 30000)}
+                value={ctxSizeValue}
+                onChange={(e) => {
+                  setCtxSizeValue(e.target.value);
+                  const parsed = parseInt(e.target.value);
+                  if (!isNaN(parsed)) {
+                    onCtxSizeChange(parsed);
+                  }
+                }}
+                onBlur={() => {
+                  const value = parseInt(ctxSizeValue);
+                  if (isNaN(value) || value < 6000) {
+                    onCtxSizeChange(30000);
+                    setCtxSizeValue('30000');
+                  } else if (value > 100000) {
+                    onCtxSizeChange(100000);
+                    setCtxSizeValue('100000');
+                  }
+                }}
                 min="6000"
                 max="100000"
                 step="1000"
@@ -157,8 +208,24 @@ export const SettingsPanel = ({
               <label>GPU Layers:</label>
               <input
                 type="number"
-                value={gpuLayers}
-                onChange={(e) => onGpuLayersChange(parseInt(e.target.value) || 41)}
+                value={gpuLayersValue}
+                onChange={(e) => {
+                  setGpuLayersValue(e.target.value);
+                  const parsed = parseInt(e.target.value);
+                  if (!isNaN(parsed)) {
+                    onGpuLayersChange(parsed);
+                  }
+                }}
+                onBlur={() => {
+                  const value = parseInt(gpuLayersValue);
+                  if (isNaN(value) || value < 0) {
+                    onGpuLayersChange(0);
+                    setGpuLayersValue('0');
+                  } else if (value > 41) {
+                    onGpuLayersChange(41);
+                    setGpuLayersValue('41');
+                  }
+                }}
                 min="0"
                 max="41"
               />

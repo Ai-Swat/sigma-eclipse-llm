@@ -3,16 +3,20 @@
   "description": "Version mapping for Sigma Shield LLM external dependencies",
   "appVersion": "0.1.0",
   "llamaCpp": {
-    "version": "b7120",
+    "version": "b7140",
     "platforms": {
-      "macos-arm64": "llama-b7120-bin-macos-arm64.zip",
-      "windows-x64": "llama-b7120-bin-win-vulkan-x64.zip",
-      "windows-arm64": "llama-b7120-bin-win-cpu-arm64.zip"
-    },
-    "sha256": {
-      "macos-arm64": "4d675c87ade154145bd7a2a5de5c9f0c18ca5963804edc2d65d95423589e952b",
-      "windows-x64": "742b97a9dd0fa2bda68a2c49c410164da84a2fdb97b7734ef7b6014607af67aa",
-      "windows-arm64": "86066abeacdb52f2dbde0cb943412157455f781464c41da257d14142dde51e04"
+      "macos-arm64": {
+        "url": "https://github.com/ggml-org/llama.cpp/releases/download/b7140/llama-b7140-bin-macos-arm64.zip",
+        "sha256": "a6c631d3be905917a3461d782ce8ca6ae89bafcdfb510a464336691bf52e472a"
+      },
+      "windows-x64": {
+        "url": "https://releases.sigmabrowser.com/dev/llamacpp/llama-b7140-bin-win-cuda-cublas-x86.zip",
+        "sha256": "c2d1356705b6cdad61823619bef0f51b60fa6b49cf5f9ee617b47ba2c6498357"
+      },
+      "windows-arm64": {
+        "url": "https://github.com/ggml-org/llama.cpp/releases/download/b7140/llama-b7140-bin-win-cpu-arm64.zip",
+        "sha256": "01ee09c30452b3370ba8727f8010a5b2900aaf31dff72e77163304ace1e7e31c"
+      }
     }
   },
   "models": {

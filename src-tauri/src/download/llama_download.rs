@@ -145,20 +145,15 @@ pub async fn download_llama_cpp(app: AppHandle) -> Result<String, String> {
     let config = load_config()?;
     let platform_id = get_platform_id()?;
 
-    // Get the platform-specific filename from config
-    let filename = config
+    // Get the platform-specific configuration
+    let platform_config = config
         .llama_cpp
         .platforms
         .get(&platform_id)
         .ok_or_else(|| format!("Platform '{}' not supported in configuration", platform_id))?;
 
     let version = &config.llama_cpp.version;
-
-    // Build GitHub release URL dynamically
-    let url = format!(
-        "https://github.com/ggml-org/llama.cpp/releases/download/{}/{}",
-        version, filename
-    );
+    let url = &platform_config.url;
 
     let binary_path = get_llama_binary_path().map_err(|e| e.to_string())?;
 
@@ -234,17 +229,14 @@ pub async fn download_llama_cpp(app: AppHandle) -> Result<String, String> {
         .map_err(|e| format!("Failed to flush file: {}", e))?;
 
     // Verify SHA-256 checksum
-    let expected_hash = config
-        .llama_cpp
-        .sha256
-        .get(&platform_id)
-        .map(|s| s.as_str())
-        .unwrap_or("");
+    let expected_hash = &platform_config.sha256;
     
-    if let Err(e) = verify_sha256(&zip_path, expected_hash) {
-        // Remove corrupted file
-        fs::remove_file(&zip_path).ok();
-        return Err(format!("Checksum verification failed: {}", e));
+    if !expected_hash.is_empty() {
+        if let Err(e) = verify_sha256(&zip_path, expected_hash) {
+            // Remove corrupted file
+            fs::remove_file(&zip_path).ok();
+            return Err(format!("Checksum verification failed: {}", e));
+        }
     }
 
     // Emit extraction progress

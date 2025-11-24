@@ -22,13 +22,19 @@ pub struct DownloadProgress {
     pub message: String,
 }
 
+// LlamaCpp platform configuration
+#[derive(Debug, Deserialize)]
+pub struct LlamaCppPlatform {
+    pub url: String,
+    #[serde(default)]
+    pub sha256: String,
+}
+
 // LlamaCpp version configuration
 #[derive(Debug, Deserialize)]
 pub struct LlamaCppConfig {
     pub version: String,
-    pub platforms: HashMap<String, String>,
-    #[serde(default)]
-    pub sha256: HashMap<String, String>,
+    pub platforms: HashMap<String, LlamaCppPlatform>,
 }
 
 // Model configuration from versions.json
