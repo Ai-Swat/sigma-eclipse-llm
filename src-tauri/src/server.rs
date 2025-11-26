@@ -1,4 +1,4 @@
-use crate::paths::{get_llama_binary_path, get_model_file_path};
+use crate::paths::{get_llama_binary_path, get_model_file_path, get_short_path};
 use crate::settings::get_active_model;
 use crate::types::{ServerState, ServerStatus};
 use std::io::{BufRead, BufReader};
@@ -53,12 +53,19 @@ pub async fn start_server(
         return Err(format!("Model '{}' not found. Please download it first.", active_model));
     }
 
+    // Convert paths to short format on Windows to handle Cyrillic characters
+    let binary_path_safe = get_short_path(&binary_path).map_err(|e| e.to_string())?;
+    let model_path_safe = get_short_path(&model_path).map_err(|e| e.to_string())?;
+
+    log::info!("Starting llama-server with binary: {:?}", binary_path_safe);
+    log::info!("Using model: {:?}", model_path_safe);
+
     // Start llama-server in API-only mode (no web frontend)
     // Use kill_on_drop to ensure process is killed when parent exits
-    let mut command = Command::new(&binary_path);
+    let mut command = Command::new(&binary_path_safe);
     command
         .arg("-m")
-        .arg(&model_path)
+        .arg(&model_path_safe)
         .arg("--port")
         .arg(port.to_string())
         .arg("--ctx-size")

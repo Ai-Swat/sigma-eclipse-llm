@@ -2,6 +2,51 @@ use anyhow::{anyhow, Result};
 use std::fs;
 use std::path::PathBuf;
 
+#[cfg(target_os = "windows")]
+use std::os::windows::ffi::OsStrExt;
+
+/// Convert path to Windows short path format (8.3) to handle Cyrillic characters
+/// This is necessary because llama.cpp uses C functions that don't handle UTF-8 paths well on Windows
+#[cfg(target_os = "windows")]
+pub fn get_short_path(long_path: &PathBuf) -> Result<PathBuf> {
+    use windows::core::PWSTR;
+    use windows::Win32::Foundation::MAX_PATH;
+    use windows::Win32::Storage::FileSystem::GetShortPathNameW;
+    
+    // Convert PathBuf to wide string (UTF-16)
+    let wide: Vec<u16> = long_path
+        .as_os_str()
+        .encode_wide()
+        .chain(Some(0))
+        .collect();
+    
+    let mut buffer = vec![0u16; MAX_PATH as usize];
+    
+    // Call Windows API to get short path
+    let result = unsafe {
+        GetShortPathNameW(
+            PWSTR(wide.as_ptr() as *mut u16),
+            Some(&mut buffer),
+        )
+    };
+    
+    if result == 0 {
+        // If GetShortPathNameW fails, return original path as fallback
+        log::warn!("Failed to get short path for {:?}, using original path", long_path);
+        return Ok(long_path.clone());
+    }
+    
+    // Convert result back to String
+    let short_path_str = String::from_utf16_lossy(&buffer[..result as usize]);
+    Ok(PathBuf::from(short_path_str))
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn get_short_path(long_path: &PathBuf) -> Result<PathBuf> {
+    // On non-Windows platforms, just return the original path
+    Ok(long_path.clone())
+}
+
 // Get app data directory (cross-platform)
 pub fn get_app_data_dir() -> Result<PathBuf> {
     let app_dir = dirs::data_dir()
