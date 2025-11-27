@@ -43,7 +43,7 @@ impl Default for IpcState {
 pub fn get_ipc_state_path() -> Result<PathBuf> {
     let app_data = dirs::data_dir()
         .context("Failed to get app data directory")?
-        .join("sigma-shield");
+        .join("sigma-eclipse");
     
     fs::create_dir_all(&app_data)?;
     Ok(app_data.join("ipc_state.json"))

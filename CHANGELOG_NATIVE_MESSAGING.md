@@ -27,14 +27,14 @@
 **Файл:** `src-tauri/src/ipc_state.rs`
 
 Модуль для межпроцессного взаимодействия:
-- Хранит состояние в JSON файле (`~/Library/Application Support/sigma-shield/ipc_state.json`)
+- Хранит состояние в JSON файле (`~/Library/Application Support/sigma-eclipse/ipc_state.json`)
 - Позволяет Native Host и Tauri приложению обмениваться данными
 - Отслеживает статус сервера, PID процесса, параметры (port, ctx_size, gpu_layers), прогресс загрузки
 
 ### 3. Манифесты и скрипты установки
 
 **Файлы:**
-- `native-messaging/com.sigma-shield.host.json` - Шаблон манифеста
+- `native-messaging/com.sigma-eclipse.host.json` - Шаблон манифеста
 - `scripts/install-native-messaging-host.sh` - Скрипт автоматической установки
 
 Автоматизируют установку Native Messaging Host:
@@ -47,7 +47,7 @@
 
 **[ОБНОВЛЕНО]** Полные примеры перенесены в документацию:
 - Background Service Worker для Manifest V3
-- Helper класс `SigmaShieldClient`
+- Helper класс `SigmaEclipseClient`
 - Promise-based обёртка для команд
 - Обработка ошибок и переподключения
 - Все примеры из бывшего тестового расширения теперь в `NATIVE_MESSAGING.md`
@@ -76,7 +76,7 @@
 ## Структура проекта после изменений
 
 ```
-sigma-shield/
+sigma-eclipse/
 ├── src-tauri/
 │   ├── src/
 │   │   ├── bin/
@@ -88,11 +88,11 @@ sigma-shield/
 │   │   └── ...
 │   ├── Cargo.toml                          # ИЗМЕНЁН: добавлен [[bin]]
 │   └── target/release/
-│       └── sigma-shield-host               # ← НОВЫЙ: бинарник
+│       └── sigma-eclipse-host               # ← НОВЫЙ: бинарник
 ├── scripts/
 │   └── install-native-messaging-host.sh    # ← НОВЫЙ: установка
 ├── native-messaging/
-│   └── com.sigma-shield.host.json          # ← НОВЫЙ: шаблон манифеста
+│   └── com.sigma-eclipse.host.json          # ← НОВЫЙ: шаблон манифеста
 ├── NATIVE_MESSAGING.md                     # ← НОВЫЙ: документация + примеры
 ├── QUICK_START_NATIVE_MESSAGING.md         # ← НОВЫЙ: quick start
 └── CHANGELOG_NATIVE_MESSAGING.md           # ← НОВЫЙ: этот файл
@@ -107,14 +107,14 @@ sigma-shield/
 │  ┌──────────────────────────────────────────────────────────┐  │
 │  │              Your Chrome Extension                       │  │
 │  │                                                          │  │
-│  │  chrome.runtime.connectNative('com.sigma_shield.host')  │  │
+│  │  chrome.runtime.connectNative('com.sigma_eclipse.host')  │  │
 │  └────────────────────────┬─────────────────────────────────┘  │
 └───────────────────────────┼─────────────────────────────────────┘
                             │ Native Messaging Protocol
                             │ (stdin/stdout, JSON messages)
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│              sigma-shield-host (Rust binary)                    │
+│              sigma-eclipse-host (Rust binary)                    │
 │                                                                 │
 │  • Reads commands from stdin                                   │
 │  • Processes commands (start/stop/status)                      │
@@ -126,7 +126,7 @@ sigma-shield/
                          │ (ipc_state.json)
                          ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│         Sigma Shield Tauri App (optional)                       │
+│         Sigma Eclipse Tauri App (optional)                       │
 │                                                                 │
 │  • Can read/write same IPC state                               │
 │  • Shares information with Native Host                         │
@@ -170,7 +170,7 @@ sigma-shield/
 
 1. Соберите бинарник:
    ```bash
-   cargo build --release --bin sigma-shield-host
+   cargo build --release --bin sigma-eclipse-host
    ```
 
 2. Установите манифест:
@@ -216,5 +216,5 @@ sigma-shield/
 
 ## Авторы
 
-Создано для проекта Sigma Shield LLM
+Создано для проекта Sigma Eclipse LLM
 

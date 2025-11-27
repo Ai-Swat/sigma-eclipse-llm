@@ -38,22 +38,22 @@ mkdir -p "$BINARIES_DIR"
 # Create placeholder files for Tauri build system (it checks externalBin paths)
 # These will be replaced with actual binaries after build
 echo -e "${YELLOW}Creating placeholder files for Tauri...${NC}"
-touch "$BINARIES_DIR/sigma-shield-host-aarch64-apple-darwin"
-touch "$BINARIES_DIR/sigma-shield-host-x86_64-unknown-linux-gnu"
-touch "$BINARIES_DIR/sigma-shield-host-x86_64-pc-windows-msvc.exe"
+touch "$BINARIES_DIR/sigma-eclipse-host-aarch64-apple-darwin"
+touch "$BINARIES_DIR/sigma-eclipse-host-x86_64-unknown-linux-gnu"
+touch "$BINARIES_DIR/sigma-eclipse-host-x86_64-pc-windows-msvc.exe"
 
 # Build the binary
-echo -e "${YELLOW}Building sigma-shield-host...${NC}"
+echo -e "${YELLOW}Building sigma-eclipse-host...${NC}"
 cd "$TAURI_DIR"
-cargo build --release --bin sigma-shield-host
+cargo build --release --bin sigma-eclipse-host
 
 # Copy with target triple suffix
-SOURCE="$TAURI_DIR/target/release/sigma-shield-host"
+SOURCE="$TAURI_DIR/target/release/sigma-eclipse-host"
 if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
     SOURCE="${SOURCE}.exe"
-    DEST="$BINARIES_DIR/sigma-shield-host-${TARGET}.exe"
+    DEST="$BINARIES_DIR/sigma-eclipse-host-${TARGET}.exe"
 else
-    DEST="$BINARIES_DIR/sigma-shield-host-${TARGET}"
+    DEST="$BINARIES_DIR/sigma-eclipse-host-${TARGET}"
 fi
 
 echo "Copying $SOURCE -> $DEST"

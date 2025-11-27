@@ -1,12 +1,12 @@
 # Native Messaging Integration
 
-This document describes the Native Messaging integration that allows Chrome/Edge extensions to communicate with the Sigma Shield LLM application.
+This document describes the Native Messaging integration that allows Chrome/Edge extensions to communicate with the Sigma Eclipse LLM application.
 
 ## Architecture
 
 ```
 ┌─────────────────┐         ┌──────────────────┐         ┌─────────────────┐
-│   Browser       │         │  Native Message  │         │   Sigma Shield  │
+│   Browser       │         │  Native Message  │         │   Sigma Eclipse  │
 │   Extension     │ ◄─────► │     Host         │ ◄─────► │   Application   │
 │  (JavaScript)   │  stdio  │   (Rust binary)  │  IPC    │   (Optional)    │
 └─────────────────┘         └──────────────────┘         └─────────────────┘
@@ -14,7 +14,7 @@ This document describes the Native Messaging integration that allows Chrome/Edge
 
 ### Components
 
-1. **Native Messaging Host** (`sigma-shield-host`)
+1. **Native Messaging Host** (`sigma-eclipse-host`)
    - Standalone Rust binary
    - Implements Chrome Native Messaging Protocol
    - Reads from stdin, writes to stdout
@@ -37,10 +37,10 @@ This document describes the Native Messaging integration that allows Chrome/Edge
 
 ```bash
 cd src-tauri
-cargo build --release --bin sigma-shield-host
+cargo build --release --bin sigma-eclipse-host
 ```
 
-The binary will be at: `src-tauri/target/release/sigma-shield-host`
+The binary will be at: `src-tauri/target/release/sigma-eclipse-host`
 
 ### Step 2: Install the Manifest
 
@@ -53,16 +53,16 @@ Run the installation script:
 **Manual installation:**
 
 Create manifest file at:
-- **macOS**: `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.sigma_shield.host.json`
-- **Linux**: `~/.config/google-chrome/NativeMessagingHosts/com.sigma_shield.host.json`
+- **macOS**: `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.sigma_eclipse.host.json`
+- **Linux**: `~/.config/google-chrome/NativeMessagingHosts/com.sigma_eclipse.host.json`
 - **Windows**: Registry key (see Chrome docs)
 
 Manifest content:
 ```json
 {
-  "name": "com.sigma_shield.host",
-  "description": "Sigma Shield LLM Native Messaging Host",
-  "path": "/path/to/sigma-shield-host",
+  "name": "com.sigma_eclipse.host",
+  "description": "Sigma Eclipse LLM Native Messaging Host",
+  "path": "/path/to/sigma-eclipse-host",
   "type": "stdio",
   "allowed_origins": [
     "chrome-extension://YOUR_EXTENSION_ID/"
@@ -190,7 +190,7 @@ Check if downloads are in progress.
 
 The host and Tauri app communicate via a shared state file:
 
-**Location:** `~/Library/Application Support/sigma-shield/ipc_state.json` (macOS)
+**Location:** `~/Library/Application Support/sigma-eclipse/ipc_state.json` (macOS)
 
 **Format:**
 ```json
@@ -211,7 +211,7 @@ The host and Tauri app communicate via a shared state file:
 
 ```javascript
 // Connect to native host
-const port = chrome.runtime.connectNative('com.sigma_shield.host');
+const port = chrome.runtime.connectNative('com.sigma_eclipse.host');
 
 // Send command
 port.postMessage({
@@ -245,7 +245,7 @@ Complete example for Chrome Extension Manifest V3 background service worker:
 ```javascript
 // background.js - Background service worker for Native Messaging
 
-const HOST_NAME = 'com.sigma_shield.host';
+const HOST_NAME = 'com.sigma_eclipse.host';
 let port = null;
 let messageId = 0;
 let pendingRequests = new Map();
@@ -364,7 +364,7 @@ connect();
 Cleaner interface for using Native Messaging:
 
 ```javascript
-class SigmaShieldClient {
+class SigmaEclipseClient {
   constructor() {
     this.port = null;
     this.messageId = 0;
@@ -372,7 +372,7 @@ class SigmaShieldClient {
   }
   
   connect() {
-    this.port = chrome.runtime.connectNative('com.sigma_shield.host');
+    this.port = chrome.runtime.connectNative('com.sigma_eclipse.host');
     
     this.port.onMessage.addListener((message) => {
       const resolve = this.pending.get(message.id);
@@ -432,7 +432,7 @@ class SigmaShieldClient {
 }
 
 // Usage
-const client = new SigmaShieldClient();
+const client = new SigmaEclipseClient();
 const status = await client.getStatus();
 console.log('Server running:', status.is_running);
 ```
@@ -446,7 +446,7 @@ The native host logs to **stderr** (not stdout):
 ```bash
 # Run host manually to see logs
 echo '{"id":"1","command":"get_server_status","params":{}}' | \
-  /path/to/sigma-shield-host
+  /path/to/sigma-eclipse-host
 ```
 
 ### Check Extension Logs
@@ -478,9 +478,9 @@ When distributing your app, the Native Messaging manifest should be installed:
 
 1. **macOS**: Copy manifest to `~/Library/Application Support/[Browser]/NativeMessagingHosts/`
 2. **Linux**: Copy manifest to `~/.config/[browser]/NativeMessagingHosts/`
-3. **Windows**: Create registry key under `HKEY_CURRENT_USER\Software\Google\Chrome\NativeMessagingHosts\com.sigma_shield.host`
+3. **Windows**: Create registry key under `HKEY_CURRENT_USER\Software\Google\Chrome\NativeMessagingHosts\com.sigma_eclipse.host`
 
-Include the `sigma-shield-host` binary in your app bundle:
+Include the `sigma-eclipse-host` binary in your app bundle:
 - **macOS**: In `.app/Contents/MacOS/`
 - **Linux**: In `/usr/local/bin/` or app directory
 - **Windows**: In application directory
@@ -492,5 +492,5 @@ Include the `sigma-shield-host` binary in your app bundle:
 
 ## License
 
-Part of Sigma Shield LLM project.
+Part of Sigma Eclipse LLM project.
 

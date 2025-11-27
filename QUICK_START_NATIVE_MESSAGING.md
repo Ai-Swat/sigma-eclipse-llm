@@ -1,19 +1,19 @@
 # 🚀 Quick Start: Native Messaging для Chrome Extension
 
-Быстрая инструкция по настройке связи между вашим расширением Chrome и приложением Sigma Shield.
+Быстрая инструкция по настройке связи между вашим расширением Chrome и приложением Sigma Eclipse.
 
 ## Шаг 1: Сборка Native Host (5 минут)
 
 ```bash
 cd src-tauri
-cargo build --release --bin sigma-shield-host
+cargo build --release --bin sigma-eclipse-host
 ```
 
-**Результат:** Бинарник создан в `src-tauri/target/release/sigma-shield-host`
+**Результат:** Бинарник создан в `src-tauri/target/release/sigma-eclipse-host`
 
 **Для production:** При сборке основного приложения, также соберите host:
 ```bash
-cargo build --release --bin sigma-shield-host
+cargo build --release --bin sigma-eclipse-host
 # Скопируйте бинарник в ту же папку что и основной exe
 ```
 
@@ -31,14 +31,14 @@ cargo build --release --bin sigma-shield-host
 **Альтернатива (вручную):**
 
 Создайте файл:
-- **macOS**: `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.sigma_shield.host.json`
+- **macOS**: `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.sigma_eclipse.host.json`
 
 С содержимым:
 ```json
 {
-  "name": "com.sigma_shield.host",
-  "description": "Sigma Shield LLM Native Messaging Host",
-  "path": "/путь/к/sigma-shield-host",
+  "name": "com.sigma_eclipse.host",
+  "description": "Sigma Eclipse LLM Native Messaging Host",
+  "path": "/путь/к/sigma-eclipse-host",
   "type": "stdio",
   "allowed_origins": [
     "chrome-extension://ВАШ_EXTENSION_ID/"
@@ -56,7 +56,7 @@ cargo build --release --bin sigma-shield-host
 ```json
 {
   "manifest_version": 3,
-  "name": "Sigma Shield Test",
+  "name": "Sigma Eclipse Test",
   "version": "1.0.0",
   "permissions": ["nativeMessaging"],
   "background": {
@@ -68,7 +68,7 @@ cargo build --release --bin sigma-shield-host
 **background.js:**
 ```javascript
 // Подключение к хосту
-const port = chrome.runtime.connectNative('com.sigma_shield.host');
+const port = chrome.runtime.connectNative('com.sigma_eclipse.host');
 
 // Отправка команды
 port.postMessage({
@@ -136,7 +136,7 @@ port.postMessage({
 ```bash
 # Запустите хост вручную для просмотра логов
 echo '{"id":"1","command":"get_server_status","params":{}}' | \
-  /path/to/sigma-shield-host
+  /path/to/sigma-eclipse-host
 ```
 
 ### Логи расширения
@@ -151,7 +151,7 @@ echo '{"id":"1","command":"get_server_status","params":{}}' | \
 |--------|---------|
 | "Specified native messaging host not found" | Проверьте путь в манифесте и что файл существует |
 | "Access to the specified native messaging host is forbidden" | Обновите `allowed_origins` с правильным Extension ID |
-| "Failed to start native messaging host" | Убедитесь что бинарник исполняемый: `chmod +x sigma-shield-host` |
+| "Failed to start native messaging host" | Убедитесь что бинарник исполняемый: `chmod +x sigma-eclipse-host` |
 
 ## Полная документация
 
@@ -164,7 +164,7 @@ echo '{"id":"1","command":"get_server_status","params":{}}' | \
 ## Структура файлов
 
 ```
-sigma-shield/
+sigma-eclipse/
 ├── src-tauri/
 │   ├── src/
 │   │   ├── bin/
@@ -173,11 +173,11 @@ sigma-shield/
 │   │   ├── server_manager.rs             # Shared server logic
 │   │   └── ...
 │   └── target/release/
-│       └── sigma-shield-host             # Скомпилированный бинарник
+│       └── sigma-eclipse-host             # Скомпилированный бинарник
 ├── scripts/
 │   └── install-native-messaging-host.sh  # Скрипт установки
 ├── native-messaging/
-│   └── com.sigma-shield.host.json        # Шаблон манифеста
+│   └── com.sigma-eclipse.host.json        # Шаблон манифеста
 ├── NATIVE_MESSAGING.md                   # Полная документация
 ├── QUICK_START_NATIVE_MESSAGING.md       # Этот файл
 └── CHANGELOG_NATIVE_MESSAGING.md         # Changelog

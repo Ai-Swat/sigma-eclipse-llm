@@ -6,11 +6,11 @@ use serde_json::json;
 use std::fs;
 use std::path::PathBuf;
 
-/// Extension ID for the Sigma Shield browser extension (loaded from .env at build time)
+/// Extension ID for the Sigma Eclipse browser extension (loaded from .env at build time)
 const EXTENSION_ID: &str = env!("EXTENSION_ID");
 
 /// Native messaging host name
-const HOST_NAME: &str = "com.sigma_shield.host";
+const HOST_NAME: &str = "com.sigma_eclipse.host";
 
 /// Get the path to the native messaging host binary inside the app bundle
 #[cfg(target_os = "macos")]
@@ -23,7 +23,7 @@ fn get_host_binary_path() -> Result<PathBuf> {
         .parent()
         .context("Failed to get MacOS directory")?;
     
-    let host_path = macos_dir.join("sigma-shield-host");
+    let host_path = macos_dir.join("sigma-eclipse-host");
     
     if host_path.exists() {
         Ok(host_path)
@@ -32,7 +32,7 @@ fn get_host_binary_path() -> Result<PathBuf> {
         let dev_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("target")
             .join("release")
-            .join("sigma-shield-host");
+            .join("sigma-eclipse-host");
         
         if dev_path.exists() {
             Ok(dev_path)
@@ -67,7 +67,7 @@ fn get_sigma_native_hosts_dir() -> Result<PathBuf> {
 fn generate_manifest(host_binary_path: &PathBuf) -> String {
     let manifest = json!({
         "name": HOST_NAME,
-        "description": "Sigma Shield LLM Native Messaging Host",
+        "description": "Sigma Eclipse LLM Native Messaging Host",
         "path": host_binary_path.to_string_lossy(),
         "type": "stdio",
         "allowed_origins": [

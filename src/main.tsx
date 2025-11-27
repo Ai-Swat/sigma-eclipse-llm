@@ -17,7 +17,7 @@ import { resolveResource } from "@tauri-apps/api/path";
     items: [
       {
         id: "open",
-        text: "Show Sigma Shield LLM",
+        text: "Show Sigma Eclipse LLM",
         action: async () => {
           const window = getCurrentWindow();
           await window.show();

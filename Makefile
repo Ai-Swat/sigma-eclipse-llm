@@ -1,4 +1,4 @@
-# Sigma Shield LLM - Build Makefile
+# Sigma Eclipse LLM - Build Makefile
 # Священные команды сборки во славу Омниссии
 
 .PHONY: all dev build build-host build-all clean install-deps help
@@ -20,7 +20,7 @@ endif
 # Directories
 TAURI_DIR := src-tauri
 BINARIES_DIR := $(TAURI_DIR)/binaries
-HOST_BINARY := sigma-shield-host
+HOST_BINARY := sigma-eclipse-host
 HOST_BINARY_PATH := $(BINARIES_DIR)/$(HOST_BINARY)-$(TARGET)$(BINARY_EXT)
 
 # Default target
@@ -111,7 +111,7 @@ fmt:
 
 # Show help
 help:
-	@echo "Sigma Shield LLM - Build Commands"
+	@echo "Sigma Eclipse LLM - Build Commands"
 	@echo "=================================="
 	@echo ""
 	@echo "Usage: make [target]"

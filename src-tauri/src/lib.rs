@@ -29,7 +29,7 @@ use types::ServerState;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let log_file_name = format!(
-        "sigma-shield-{}.log",
+        "sigma-eclipse-{}.log",
         chrono::Local::now().format("%Y%m%d-%H%M%S")
     );
 

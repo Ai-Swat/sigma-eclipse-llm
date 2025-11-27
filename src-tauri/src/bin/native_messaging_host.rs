@@ -10,8 +10,8 @@ use std::process::Child;
 use std::sync::Mutex;
 
 // Import shared modules from main crate
-use sigma_shield_lib::ipc_state::read_ipc_state;
-use sigma_shield_lib::server_manager::{
+use sigma_eclipse_lib::ipc_state::read_ipc_state;
+use sigma_eclipse_lib::server_manager::{
     check_server_running, get_status, start_server_process, stop_server_by_pid, ServerConfig,
 };
 
@@ -214,7 +214,7 @@ fn process_command(message: NativeMessage) -> NativeResponse {
 fn main() {
     log!("Native Messaging Host started");
     log!("Protocol: Chrome Native Messaging");
-    log!("App: Sigma Shield LLM");
+    log!("App: Sigma Eclipse LLM");
 
     // Main message loop
     loop {

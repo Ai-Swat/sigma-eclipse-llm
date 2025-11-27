@@ -5,7 +5,7 @@
 
 set -e
 
-echo "🔧 Building Sigma Shield for Windows using Docker..."
+echo "🔧 Building Sigma Eclipse for Windows using Docker..."
 echo ""
 
 # Colors

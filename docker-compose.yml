@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.windows
-    container_name: sigma-shield-windows-builder
+    container_name: sigma-eclipse-windows-builder
     volumes:
       - .:/app
       - cargo-cache:/usr/local/cargo/registry
@@ -22,7 +22,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.windows
-    container_name: sigma-shield-shell
+    container_name: sigma-eclipse-shell
     volumes:
       - .:/app
       - cargo-cache:/usr/local/cargo/registry

@@ -1,6 +1,6 @@
 # Building Windows Version with Docker on Mac/Linux
 
-This guide explains how to build the Windows version of Sigma Shield locally using Docker.
+This guide explains how to build the Windows version of Sigma Eclipse locally using Docker.
 
 ## 🐳 Prerequisites
 
@@ -45,9 +45,9 @@ After successful build, you'll find Windows installers at:
 ```
 src-tauri/target/x86_64-pc-windows-gnu/release/bundle/
 ├── msi/
-│   └── Sigma Shield_0.1.0_x64_en-US.msi
+│   └── Sigma Eclipse_0.1.0_x64_en-US.msi
 └── nsis/
-    └── Sigma Shield_0.1.0_x64-setup.exe
+    └── Sigma Eclipse_0.1.0_x64-setup.exe
 ```
 
 ## 🔧 Troubleshooting
@@ -196,7 +196,7 @@ If you encounter issues:
 
 ```bash
 $ ./scripts/build-windows-docker.sh
-🔧 Building Sigma Shield for Windows using Docker...
+🔧 Building Sigma Eclipse for Windows using Docker...
 
 ✓ Docker is running
 
@@ -206,9 +206,9 @@ $ ./scripts/build-windows-docker.sh
 
 🔨 Starting Windows build...
     Updating crates.io index
-   Compiling sigma-shield v0.1.0
+   Compiling sigma-eclipse v0.1.0
     Finished release [optimized] target(s) in 8m 32s
-    Bundling Sigma Shield_0.1.0_x64_en-US.msi
+    Bundling Sigma Eclipse_0.1.0_x64_en-US.msi
 
 ✓ Build completed successfully!
 
