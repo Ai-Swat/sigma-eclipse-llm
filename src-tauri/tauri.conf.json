@@ -39,6 +39,9 @@
     "category": "public.app-category.utilities",
     "shortDescription": "",
     "longDescription": "",
+    "externalBin": [
+      "binaries/sigma-shield-host"
+    ],
     "resources": [
       "icons/icon_transparent.ico"
     ],

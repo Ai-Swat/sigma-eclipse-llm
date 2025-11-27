@@ -3,8 +3,11 @@ use tauri::Manager;
 
 // Module declarations
 mod download;
+pub mod ipc_state;
+mod native_messaging;
 mod paths;
 mod server;
+pub mod server_manager;
 mod settings;
 mod system;
 mod types;
@@ -16,6 +19,7 @@ use download::{
 };
 use server::{get_server_status, start_server, stop_server};
 use settings::{get_active_model_command, set_active_model_command};
+use native_messaging::{get_native_messaging_status, install_native_messaging};
 use system::{
     clear_all_data, clear_binaries, clear_models, get_app_data_path, get_logs_path,
     get_recommended_settings, get_system_memory_gb,
@@ -80,6 +84,8 @@ pub fn run() {
             clear_binaries,
             clear_models,
             clear_all_data,
+            install_native_messaging,
+            get_native_messaging_status,
         ])
         .on_window_event(|window, event| {
             // Hide window instead of closing when user clicks close button
@@ -89,6 +95,16 @@ pub fn run() {
                     log::error!("Failed to hide window: {}", e);
                 });
             }
+        })
+        .setup(|_app| {
+            // Install native messaging manifests on startup
+            #[cfg(target_os = "macos")]
+            {
+                if let Err(e) = native_messaging::install_native_messaging_manifests() {
+                    log::warn!("Failed to install native messaging manifests: {}", e);
+                }
+            }
+            Ok(())
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
