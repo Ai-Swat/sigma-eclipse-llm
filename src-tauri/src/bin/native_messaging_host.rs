@@ -10,7 +10,7 @@ use std::process::Child;
 use std::sync::Mutex;
 
 // Import shared modules from main crate
-use sigma_eclipse_lib::ipc_state::read_ipc_state;
+use sigma_eclipse_lib::ipc_state::{is_tauri_app_running, read_ipc_state};
 use sigma_eclipse_lib::server_manager::{
     check_server_running, get_status, start_server_process, stop_server_by_pid, ServerConfig,
 };
@@ -180,6 +180,143 @@ fn handle_is_downloading() -> Result<Value> {
     }))
 }
 
+/// Handle get_app_status command - check if Tauri app is running
+fn handle_get_app_status() -> Result<Value> {
+    let is_running = is_tauri_app_running()?;
+    let state = read_ipc_state()?;
+
+    log!("App status: running={}, pid={:?}", is_running, state.tauri_app_pid);
+
+    Ok(json!({
+        "is_running": is_running,
+        "pid": state.tauri_app_pid,
+        "last_heartbeat": state.tauri_app_heartbeat,
+        "message": if is_running { "App is running" } else { "App is not running" },
+    }))
+}
+
+/// Handle launch_app command - launch Tauri app if not running
+fn handle_launch_app() -> Result<Value> {
+    // Check if already running
+    if is_tauri_app_running()? {
+        log!("App is already running");
+        return Ok(json!({
+            "launched": false,
+            "message": "App is already running",
+        }));
+    }
+
+    log!("Launching Sigma Eclipse app...");
+
+    #[cfg(target_os = "macos")]
+    {
+        use std::process::Command;
+        
+        // Try to launch via bundle identifier first
+        let result = Command::new("open")
+            .args(["-b", "com.sigma-eclipse.llm"])
+            .spawn();
+        
+        match result {
+            Ok(_) => {
+                log!("App launched successfully via bundle ID");
+                return Ok(json!({
+                    "launched": true,
+                    "message": "App launched successfully",
+                }));
+            }
+            Err(e) => {
+                log!("Failed to launch via bundle ID: {}", e);
+            }
+        }
+        
+        // Fallback: try to launch by app name
+        let result = Command::new("open")
+            .args(["-a", "Sigma Eclipse LLM"])
+            .spawn();
+        
+        match result {
+            Ok(_) => {
+                log!("App launched successfully via app name");
+                return Ok(json!({
+                    "launched": true,
+                    "message": "App launched successfully",
+                }));
+            }
+            Err(e) => {
+                log!("Failed to launch via app name: {}", e);
+                return Err(anyhow::anyhow!("Failed to launch app: {}", e));
+            }
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        
+        // Try to find and launch the app from common locations
+        let possible_paths = [
+            dirs::data_local_dir()
+                .map(|p| p.join("Programs").join("Sigma Eclipse LLM").join("Sigma Eclipse LLM.exe")),
+            dirs::home_dir()
+                .map(|p| p.join("AppData").join("Local").join("Programs").join("Sigma Eclipse LLM").join("Sigma Eclipse LLM.exe")),
+        ];
+        
+        for path_opt in possible_paths.iter() {
+            if let Some(path) = path_opt {
+                if path.exists() {
+                    match Command::new(path).spawn() {
+                        Ok(_) => {
+                            log!("App launched successfully from {:?}", path);
+                            return Ok(json!({
+                                "launched": true,
+                                "message": "App launched successfully",
+                            }));
+                        }
+                        Err(e) => {
+                            log!("Failed to launch from {:?}: {}", path, e);
+                        }
+                    }
+                }
+            }
+        }
+        
+        return Err(anyhow::anyhow!("Could not find Sigma Eclipse LLM executable"));
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        use std::process::Command;
+        
+        // Try common Linux app locations
+        let possible_commands = [
+            "sigma-eclipse-llm",
+            "/usr/bin/sigma-eclipse-llm",
+            "/usr/local/bin/sigma-eclipse-llm",
+        ];
+        
+        for cmd in possible_commands {
+            match Command::new(cmd).spawn() {
+                Ok(_) => {
+                    log!("App launched successfully via {}", cmd);
+                    return Ok(json!({
+                        "launched": true,
+                        "message": "App launched successfully",
+                    }));
+                }
+                Err(_) => continue,
+            }
+        }
+        
+        return Err(anyhow::anyhow!("Could not find Sigma Eclipse LLM executable"));
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
+    {
+        return Err(anyhow::anyhow!("Platform not supported"));
+    }
+}
+
 /// Process a single command
 fn process_command(message: NativeMessage) -> NativeResponse {
     log!("Received command: {} (id: {})", message.command, message.id);
@@ -189,6 +326,8 @@ fn process_command(message: NativeMessage) -> NativeResponse {
         "stop_server" => handle_stop_server(),
         "get_server_status" => handle_get_server_status(),
         "isDownloading" => handle_is_downloading(),
+        "get_app_status" => handle_get_app_status(),
+        "launch_app" => handle_launch_app(),
         _ => Err(anyhow::anyhow!("Unknown command: {}", message.command)),
     };
 

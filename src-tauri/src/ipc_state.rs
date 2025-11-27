@@ -23,6 +23,10 @@ pub struct IpcState {
     pub server_ctx_size: Option<u32>,
     /// Server GPU layers
     pub server_gpu_layers: Option<u32>,
+    /// Tauri app process ID if running
+    pub tauri_app_pid: Option<u32>,
+    /// Tauri app last heartbeat timestamp (Unix timestamp in seconds)
+    pub tauri_app_heartbeat: Option<u64>,
 }
 
 impl Default for IpcState {
@@ -35,6 +39,8 @@ impl Default for IpcState {
             server_port: None,
             server_ctx_size: None,
             server_gpu_layers: None,
+            tauri_app_pid: None,
+            tauri_app_heartbeat: None,
         }
     }
 }
@@ -120,5 +126,54 @@ pub fn is_process_running(pid: u32) -> bool {
             })
             .unwrap_or(false)
     }
+}
+
+/// Heartbeat timeout in seconds (if no heartbeat for this long, app is considered dead)
+pub const HEARTBEAT_TIMEOUT_SECS: u64 = 10;
+
+/// Get current Unix timestamp in seconds
+pub fn current_timestamp() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+}
+
+/// Update Tauri app heartbeat (called periodically by Tauri app)
+pub fn update_tauri_app_heartbeat(pid: u32) -> Result<()> {
+    let mut state = read_ipc_state()?;
+    state.tauri_app_pid = Some(pid);
+    state.tauri_app_heartbeat = Some(current_timestamp());
+    write_ipc_state(&state)?;
+    Ok(())
+}
+
+/// Clear Tauri app status (called when Tauri app exits)
+pub fn clear_tauri_app_status() -> Result<()> {
+    let mut state = read_ipc_state()?;
+    state.tauri_app_pid = None;
+    state.tauri_app_heartbeat = None;
+    write_ipc_state(&state)?;
+    Ok(())
+}
+
+/// Check if Tauri app is running based on heartbeat and PID
+pub fn is_tauri_app_running() -> Result<bool> {
+    let state = read_ipc_state()?;
+    
+    // Check if we have PID and heartbeat
+    let (pid, heartbeat) = match (state.tauri_app_pid, state.tauri_app_heartbeat) {
+        (Some(pid), Some(hb)) => (pid, hb),
+        _ => return Ok(false),
+    };
+    
+    // Check if heartbeat is recent
+    let now = current_timestamp();
+    if now.saturating_sub(heartbeat) > HEARTBEAT_TIMEOUT_SECS {
+        return Ok(false);
+    }
+    
+    // Verify process is actually running
+    Ok(is_process_running(pid))
 }
 

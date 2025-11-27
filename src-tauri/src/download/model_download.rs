@@ -1,4 +1,5 @@
 use super::download_utils::{load_config, verify_sha256};
+use crate::ipc_state::update_download_status;
 use crate::paths::{get_model_dir, is_model_downloaded};
 use crate::types::{DownloadProgress, ModelInfo};
 use futures_util::StreamExt;
@@ -54,6 +55,9 @@ async fn download_with_progress(
     // Log some response headers for debugging
     log::info!("Content-Type: {:?}", response.headers().get("content-type"));
     log::info!("Content-Encoding: {:?}", response.headers().get("content-encoding"));
+
+    // Update IPC state - download started
+    let _ = update_download_status(true, Some(0.0));
 
     // Emit initial progress
     let _ = app.emit(
@@ -121,6 +125,9 @@ async fn download_with_progress(
                     downloaded as f64 / 1_048_576.0
                 )
             };
+
+            // Update IPC state with progress
+            let _ = update_download_status(true, percentage);
 
             let _ = app.emit(
                 "download-progress",
@@ -224,12 +231,21 @@ async fn download_model_common(
     log::info!("Download destination: {:?}", zip_path);
 
     // Download with progress
-    let downloaded = download_with_progress(model_url, &zip_path, model_name, &app).await?;
+    let downloaded = match download_with_progress(model_url, &zip_path, model_name, &app).await {
+        Ok(size) => size,
+        Err(e) => {
+            // Clear IPC download status on error
+            let _ = update_download_status(false, None);
+            return Err(e);
+        }
+    };
 
     // Verify SHA-256 checksum
     if let Err(e) = verify_sha256(&zip_path, expected_sha256) {
         // Remove corrupted file
         fs::remove_file(&zip_path).ok();
+        // Clear IPC download status on error
+        let _ = update_download_status(false, None);
         return Err(format!("Model '{}' checksum verification failed: {}", model_name, e));
     }
 
@@ -247,11 +263,18 @@ async fn download_model_common(
     log::info!("Starting extraction...");
 
     // Extract archive
-    extract_model_archive(&zip_path, &model_dir)?;
+    if let Err(e) = extract_model_archive(&zip_path, &model_dir) {
+        // Clear IPC download status on error
+        let _ = update_download_status(false, None);
+        return Err(e);
+    }
 
     // Remove zip file
     log::info!("Removing temporary zip file...");
     fs::remove_file(&zip_path).ok();
+
+    // Clear IPC download status on success
+    let _ = update_download_status(false, None);
 
     log::info!("Model '{}' ready at: {:?}", model_name, model_dir);
     Ok(format!(

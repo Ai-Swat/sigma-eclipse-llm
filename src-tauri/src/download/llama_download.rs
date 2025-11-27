@@ -1,4 +1,5 @@
 use super::download_utils::{get_platform_id, load_config, verify_sha256};
+use crate::ipc_state::update_download_status;
 use crate::paths::{get_app_data_dir, get_bin_dir, get_llama_binary_path};
 use crate::types::DownloadProgress;
 use futures_util::StreamExt;
@@ -218,6 +219,9 @@ pub async fn download_llama_cpp(app: AppHandle) -> Result<String, String> {
     log::info!("Content-Type: {:?}", response.headers().get("content-type"));
     log::info!("Content-Encoding: {:?}", response.headers().get("content-encoding"));
 
+    // Update IPC state - download started
+    let _ = update_download_status(true, Some(0.0));
+
     // Emit initial progress
     let _ = app.emit(
         "download-progress",
@@ -247,6 +251,10 @@ pub async fn download_llama_cpp(app: AppHandle) -> Result<String, String> {
 
         // Emit progress every chunk
         let percentage = total_size.map(|total| (downloaded as f64 / total as f64) * 100.0);
+        
+        // Update IPC state with progress
+        let _ = update_download_status(true, percentage);
+
         let _ = app.emit(
             "download-progress",
             DownloadProgress {
@@ -282,6 +290,8 @@ pub async fn download_llama_cpp(app: AppHandle) -> Result<String, String> {
         if let Err(e) = verify_sha256(&zip_path, expected_hash) {
             // Remove corrupted file
             fs::remove_file(&zip_path).ok();
+            // Clear IPC download status on error
+            let _ = update_download_status(false, None);
             return Err(format!("Checksum verification failed: {}", e));
         }
     }
@@ -298,13 +308,26 @@ pub async fn download_llama_cpp(app: AppHandle) -> Result<String, String> {
     );
 
     // Unzip and extract llama-server binary and all required libraries
-    let file =
-        std::fs::File::open(&zip_path).map_err(|e| format!("Failed to open zip file: {}", e))?;
+    let file = match std::fs::File::open(&zip_path) {
+        Ok(f) => f,
+        Err(e) => {
+            let _ = update_download_status(false, None);
+            return Err(format!("Failed to open zip file: {}", e));
+        }
+    };
 
-    let mut archive =
-        zip::ZipArchive::new(file).map_err(|e| format!("Failed to read zip archive: {}", e))?;
+    let mut archive = match zip::ZipArchive::new(file) {
+        Ok(a) => a,
+        Err(e) => {
+            let _ = update_download_status(false, None);
+            return Err(format!("Failed to read zip archive: {}", e));
+        }
+    };
 
-    extract_llama_archive(&mut archive, &bin_dir)?;
+    if let Err(e) = extract_llama_archive(&mut archive, &bin_dir) {
+        let _ = update_download_status(false, None);
+        return Err(e);
+    }
 
     // Make executable (Unix-like systems)
     #[cfg(unix)]
@@ -323,6 +346,9 @@ pub async fn download_llama_cpp(app: AppHandle) -> Result<String, String> {
 
     // Write version file to track installed version
     write_installed_version(version)?;
+
+    // Clear IPC download status on success
+    let _ = update_download_status(false, None);
 
     Ok(format!(
         "Downloaded llama.cpp version {} to: {:?}",

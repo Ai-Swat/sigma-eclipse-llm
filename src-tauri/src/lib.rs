@@ -1,4 +1,6 @@
 use std::sync::Mutex;
+use std::thread;
+use std::time::Duration;
 use tauri::Manager;
 
 // Module declarations
@@ -104,6 +106,19 @@ pub fn run() {
                     log::warn!("Failed to install native messaging manifests: {}", e);
                 }
             }
+            
+            // Start heartbeat thread to signal that Tauri app is running
+            let pid = std::process::id();
+            thread::spawn(move || {
+                log::info!("Heartbeat thread started for PID: {}", pid);
+                loop {
+                    if let Err(e) = ipc_state::update_tauri_app_heartbeat(pid) {
+                        log::warn!("Failed to update heartbeat: {}", e);
+                    }
+                    thread::sleep(Duration::from_secs(3));
+                }
+            });
+            
             Ok(())
         })
         .build(tauri::generate_context!())
@@ -125,6 +140,12 @@ pub fn run() {
             // Handle all exit scenarios - stop server before quitting
             tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit => {
                 log::info!("App is exiting, stopping server...");
+                
+                // Clear Tauri app status from IPC state
+                if let Err(e) = ipc_state::clear_tauri_app_status() {
+                    log::warn!("Failed to clear Tauri app status: {}", e);
+                }
+                
                 // Get server state and stop server if running
                 if let Some(state) = app_handle.try_state::<ServerState>() {
                     let mut process_guard = state.process.lock().unwrap();

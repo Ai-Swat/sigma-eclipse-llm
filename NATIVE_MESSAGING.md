@@ -186,6 +186,72 @@ Check if downloads are in progress.
 }
 ```
 
+### `get_app_status`
+
+Check if Sigma Eclipse Tauri app is running.
+
+**Parameters:** None
+
+**Response:**
+```json
+{
+  "is_running": true,
+  "pid": 12345,
+  "last_heartbeat": 1700000000,
+  "message": "App is running"
+}
+```
+
+Or when not running:
+```json
+{
+  "is_running": false,
+  "pid": null,
+  "last_heartbeat": null,
+  "message": "App is not running"
+}
+```
+
+**Example:**
+```javascript
+port.postMessage({
+  id: '1',
+  command: 'get_app_status',
+  params: {}
+});
+```
+
+### `launch_app`
+
+Launch Sigma Eclipse app if not already running.
+
+**Parameters:** None
+
+**Response:**
+```json
+{
+  "launched": true,
+  "message": "App launched successfully"
+}
+```
+
+Or if already running:
+```json
+{
+  "launched": false,
+  "message": "App is already running"
+}
+```
+
+**Example:**
+```javascript
+// Launch app if not running
+const appStatus = await client.sendCommand('get_app_status');
+if (!appStatus.is_running) {
+  await client.sendCommand('launch_app');
+}
+```
+
 ## IPC State File
 
 The host and Tauri app communicate via a shared state file:
@@ -201,9 +267,22 @@ The host and Tauri app communicate via a shared state file:
   "download_progress": null,
   "server_port": 8080,
   "server_ctx_size": 8192,
-  "server_gpu_layers": 0
+  "server_gpu_layers": 0,
+  "tauri_app_pid": 54321,
+  "tauri_app_heartbeat": 1700000000
 }
 ```
+
+**Fields:**
+- `server_pid`: PID of the LLM server process (if running)
+- `server_running`: Whether LLM server is running
+- `is_downloading`: Whether a download is in progress
+- `download_progress`: Download progress percentage (0-100)
+- `server_port`: Port the server is running on
+- `server_ctx_size`: Context size for the server
+- `server_gpu_layers`: Number of GPU layers
+- `tauri_app_pid`: PID of the Tauri GUI app (if running)
+- `tauri_app_heartbeat`: Unix timestamp of last heartbeat from Tauri app
 
 ## Usage in Your Extension
 
@@ -429,10 +508,40 @@ class SigmaEclipseClient {
   async isDownloading() {
     return this.sendCommand('isDownloading');
   }
+  
+  async getAppStatus() {
+    return this.sendCommand('get_app_status');
+  }
+  
+  async launchApp() {
+    return this.sendCommand('launch_app');
+  }
+  
+  // Convenience method: ensure app is running before other operations
+  async ensureAppRunning() {
+    const status = await this.getAppStatus();
+    if (!status.is_running) {
+      await this.launchApp();
+      // Wait a bit for app to start
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    return this.getAppStatus();
+  }
 }
 
 // Usage
 const client = new SigmaEclipseClient();
+
+// Check if app is running
+const appStatus = await client.getAppStatus();
+console.log('App running:', appStatus.is_running);
+
+// Launch app if not running
+if (!appStatus.is_running) {
+  await client.launchApp();
+}
+
+// Check server status
 const status = await client.getStatus();
 console.log('Server running:', status.is_running);
 ```
