@@ -26,7 +26,6 @@ dotenvy = "0.15"
 [dependencies]
 tauri = { version = "2", features = ["tray-icon", "image-ico", "image-png"] }
 tauri-plugin-opener = "2"
-tauri-plugin-store = "2"
 tauri-plugin-log = "2"
 tauri-plugin-single-instance = "2"
 log = "0.4"

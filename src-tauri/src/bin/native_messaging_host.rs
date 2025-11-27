@@ -28,7 +28,7 @@ static LOG_FILE: Mutex<Option<File>> = Mutex::new(None);
 
 /// Get path to log file
 fn get_log_file_path() -> Option<PathBuf> {
-    let app_dir = dirs::data_dir()?.join("sigma-eclipse");
+    let app_dir = dirs::data_dir()?.join("com.sigma-eclipse.llm");
     std::fs::create_dir_all(&app_dir).ok()?;
     Some(app_dir.join("native-host.log"))
 }
