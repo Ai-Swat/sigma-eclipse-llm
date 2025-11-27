@@ -258,8 +258,8 @@ fn get_platform_settings(memory_gb: u64) -> (String, u32) {
 // Main Settings Command
 // ============================================================================
 
-#[tauri::command]
-pub fn get_recommended_settings() -> Result<RecommendedSettings, String> {
+/// Get recommended settings based on system hardware (internal function)
+pub fn calculate_recommended_settings() -> Result<RecommendedSettings, String> {
     let memory_gb = get_system_memory_gb()?;
     let (recommended_model, recommended_ctx_size) = get_platform_settings(memory_gb);
     let recommended_gpu_layers = 41;
@@ -270,6 +270,11 @@ pub fn get_recommended_settings() -> Result<RecommendedSettings, String> {
         recommended_ctx_size,
         recommended_gpu_layers,
     })
+}
+
+#[tauri::command]
+pub fn get_recommended_settings() -> Result<RecommendedSettings, String> {
+    calculate_recommended_settings()
 }
 
 // ============================================================================

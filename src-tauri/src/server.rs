@@ -1,5 +1,6 @@
 use crate::ipc_state::update_server_status;
 use crate::server_manager::{get_status, start_server_process, stop_server_by_pid, ServerConfig};
+use crate::settings::get_server_settings;
 use crate::types::{ServerState, ServerStatus};
 use std::io::{BufRead, BufReader};
 use tauri::State;
@@ -7,9 +8,6 @@ use tauri::State;
 #[tauri::command]
 pub async fn start_server(
     state: State<'_, ServerState>,
-    port: u16,
-    ctx_size: u32,
-    gpu_layers: u32,
 ) -> Result<String, String> {
     let mut process_guard = state.process.lock().unwrap();
 
@@ -25,6 +23,9 @@ pub async fn start_server(
             }
         }
     }
+
+    // Get settings from settings.json
+    let (port, ctx_size, gpu_layers) = get_server_settings().map_err(|e| e.to_string())?;
 
     // Use shared server manager to start process
     let config = ServerConfig {

@@ -9,14 +9,8 @@ import {
   ThemeSwitcher,
 } from "./components";
 import { useTheme, useServerStatus, useLogs, useDownloadProgress, useAutoDownload } from "./hooks";
+import { AppSettings, RecommendedSettings } from "./types";
 import "./App.css";
-
-interface RecommendedSettings {
-  memory_gb: number;
-  recommended_model: string;
-  recommended_ctx_size: number;
-  recommended_gpu_layers: number;
-}
 
 function App() {
   const { theme, toggleTheme } = useTheme();
@@ -27,18 +21,9 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [baseModel, setBaseModel] = useState(""); // model or model_s
   const [isUncensored, setIsUncensored] = useState(false);
-  const [port, setPort] = useState(() => {
-    const saved = localStorage.getItem("port");
-    return saved ? parseInt(saved) : 10345;
-  });
-  const [ctxSize, setCtxSize] = useState(() => {
-    const saved = localStorage.getItem("ctxSize");
-    return saved ? parseInt(saved) : 6000;
-  });
-  const [gpuLayers, setGpuLayers] = useState(() => {
-    const saved = localStorage.getItem("gpuLayers");
-    return saved ? parseInt(saved) : 41;
-  });
+  const [port, setPort] = useState(10345);
+  const [ctxSize, setCtxSize] = useState(6000);
+  const [gpuLayers, setGpuLayers] = useState(41);
   const [appDataPath, setAppDataPath] = useState("");
 
   const { downloadProgress, setCurrentToastId, setDownloadProgress } = useDownloadProgress(addLog);
@@ -60,94 +45,74 @@ function App() {
     setDownloadProgress,
   });
 
-  // Get recommended settings from backend
+  // Load settings from backend on mount
   useEffect(() => {
-    const loadRecommendedSettings = async () => {
+    const loadSettings = async () => {
       try {
-        const settings = await invoke<RecommendedSettings>("get_recommended_settings");
+        // Load settings from backend (settings.json)
+        const settings = await invoke<AppSettings>("get_settings_command");
         // eslint-disable-next-line no-console
-        console.log("Recommended settings:", settings);
+        console.log("Loaded settings:", settings);
 
-        // IMPORTANT: Load uncensored preference FIRST (before setBaseModel)
-        // This ensures currentModel is calculated correctly on the first render
-        // and prevents duplicate toast notifications
+        // Extract base model from active_model (remove _uncensored suffix if present)
+        const isUncensoredModel = settings.active_model.endsWith("_uncensored");
+        const baseModelName = isUncensoredModel
+          ? settings.active_model.replace("_uncensored", "")
+          : settings.active_model;
+
+        // Also check localStorage for uncensored preference (UI state)
         const savedUncensored = localStorage.getItem("isUncensored");
-        const uncensored = savedUncensored === "true";
-        if (savedUncensored !== null) {
-          setIsUncensored(uncensored);
+        const uncensored = savedUncensored === "true" || isUncensoredModel;
+
+        setBaseModel(baseModelName);
+        setIsUncensored(uncensored);
+        setPort(settings.port);
+        setCtxSize(settings.ctx_size);
+        setGpuLayers(settings.gpu_layers);
+
+        addLog(`Settings loaded: port=${settings.port}, ctx_size=${settings.ctx_size}, gpu_layers=${settings.gpu_layers}`);
+        addLog(`Active model: ${settings.active_model}`);
+
+        // Get recommended settings for memory info
+        try {
+          const recommended = await invoke<RecommendedSettings>("get_recommended_settings");
+          addLog(`System RAM: ${recommended.memory_gb} GB`);
+        } catch {
+          // Ignore
         }
 
-        // Now set baseModel - currentModel will be calculated correctly
-        setBaseModel(settings.recommended_model);
-        addLog(
-          `Auto-selected base model: ${settings.recommended_model} (RAM: ${settings.memory_gb} GB)`
-        );
-
-        // Set active model based on uncensored preference
-        const initialModel = uncensored
-          ? `${settings.recommended_model}_uncensored`
-          : settings.recommended_model;
-
+        // Check if the model is downloaded, if not try base model
         try {
-          // Check if the preferred model is downloaded
+          const currentModelName = uncensored ? `${baseModelName}_uncensored` : baseModelName;
           const isDownloaded = await invoke<boolean>("check_model_downloaded", {
-            modelName: initialModel,
+            modelName: currentModelName,
           });
 
           if (isDownloaded) {
-            // Set it as active if it exists
-            await invoke<string>("set_active_model_command", { modelName: initialModel });
-            addLog(`Active model set to: ${initialModel}`);
+            await invoke<string>("set_active_model_command", { modelName: currentModelName });
           } else {
             // If preferred model not downloaded, try base model
             const baseModelDownloaded = await invoke<boolean>("check_model_downloaded", {
-              modelName: settings.recommended_model,
+              modelName: baseModelName,
             });
 
             if (baseModelDownloaded) {
-              await invoke<string>("set_active_model_command", {
-                modelName: settings.recommended_model,
-              });
-              addLog(`Active model set to: ${settings.recommended_model}`);
+              await invoke<string>("set_active_model_command", { modelName: baseModelName });
+              addLog(`Active model set to: ${baseModelName}`);
             }
           }
         } catch (error) {
           console.error("Failed to set active model:", error);
         }
-
-        // Set context size only if not manually set by user
-        const savedCtxSize = localStorage.getItem("ctxSize");
-        if (!savedCtxSize) {
-          setCtxSize(settings.recommended_ctx_size);
-          localStorage.setItem("ctxSize", settings.recommended_ctx_size.toString());
-          addLog(
-            `Auto-selected context size: ${settings.recommended_ctx_size} (RAM: ${settings.memory_gb} GB)`
-          );
-        }
-
-        // Set GPU layers only if not manually set by user
-        const savedGpuLayers = localStorage.getItem("gpuLayers");
-        if (!savedGpuLayers) {
-          setGpuLayers(settings.recommended_gpu_layers);
-          localStorage.setItem("gpuLayers", settings.recommended_gpu_layers.toString());
-        }
       } catch (error) {
-        console.error("Failed to get recommended settings:", error);
+        console.error("Failed to load settings:", error);
         // Fallback to smaller model if detection fails
         setBaseModel("model_s");
-        addLog("Failed to detect system settings, using fallback: model_s");
-
-        // Set fallback context size if not set
-        const savedCtxSize = localStorage.getItem("ctxSize");
-        if (!savedCtxSize) {
-          setCtxSize(6000);
-          localStorage.setItem("ctxSize", "6000");
-          addLog("Using fallback context size: 6k");
-        }
+        addLog("Failed to load settings, using defaults");
       }
     };
 
-    loadRecommendedSettings();
+    loadSettings();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Get app data path on mount
@@ -279,11 +244,8 @@ function App() {
 
     addLog(`Starting LLM on port ${port} (ctx: ${ctxSize}, gpu layers: ${gpuLayers})...`);
     try {
-      const result = await invoke<string>("start_server", {
-        port,
-        ctxSize,
-        gpuLayers,
-      });
+      // Server now reads settings from settings.json
+      const result = await invoke<string>("start_server");
       toast.success(result);
       addLog(result);
     } catch (error) {
@@ -294,19 +256,31 @@ function App() {
     }
   };
 
-  const handlePortChange = (newPort: number) => {
+  const handlePortChange = async (newPort: number) => {
     setPort(newPort);
-    localStorage.setItem("port", newPort.toString());
+    try {
+      await invoke<string>("set_port_command", { port: newPort });
+    } catch (error) {
+      console.error("Failed to save port:", error);
+    }
   };
 
-  const handleCtxSizeChange = (newCtxSize: number) => {
+  const handleCtxSizeChange = async (newCtxSize: number) => {
     setCtxSize(newCtxSize);
-    localStorage.setItem("ctxSize", newCtxSize.toString());
+    try {
+      await invoke<string>("set_ctx_size_command", { ctxSize: newCtxSize });
+    } catch (error) {
+      console.error("Failed to save ctx_size:", error);
+    }
   };
 
-  const handleGpuLayersChange = (newGpuLayers: number) => {
+  const handleGpuLayersChange = async (newGpuLayers: number) => {
     setGpuLayers(newGpuLayers);
-    localStorage.setItem("gpuLayers", newGpuLayers.toString());
+    try {
+      await invoke<string>("set_gpu_layers_command", { gpuLayers: newGpuLayers });
+    } catch (error) {
+      console.error("Failed to save gpu_layers:", error);
+    }
   };
 
   const handleStopServer = async () => {

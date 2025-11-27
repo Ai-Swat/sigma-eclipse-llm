@@ -18,7 +18,7 @@ pub struct ServerConfig {
 impl Default for ServerConfig {
     fn default() -> Self {
         Self {
-            port: 8080,
+            port: 10345,
             ctx_size: 8192,
             gpu_layers: 0,
         }

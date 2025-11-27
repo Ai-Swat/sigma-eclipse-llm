@@ -102,7 +102,7 @@ port.postMessage({
   id: '2',
   command: 'start_server',
   params: {
-    port: 8080,
+    port: 10345,
     ctx_size: 8192,
     gpu_layers: 0
   }

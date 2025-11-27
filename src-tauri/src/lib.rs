@@ -10,8 +10,8 @@ mod native_messaging;
 mod paths;
 mod server;
 pub mod server_manager;
-mod settings;
-mod system;
+pub mod settings;
+pub mod system;
 mod types;
 
 // Re-export command functions
@@ -20,7 +20,10 @@ use download::{
     download_model_by_name, list_available_models,
 };
 use server::{get_server_status, start_server, stop_server};
-use settings::{get_active_model_command, set_active_model_command};
+use settings::{
+    get_active_model_command, get_settings_command, set_active_model_command,
+    set_ctx_size_command, set_gpu_layers_command, set_port_command,
+};
 use native_messaging::{get_native_messaging_status, install_native_messaging};
 use system::{
     clear_all_data, clear_binaries, clear_models, get_app_data_path, get_logs_path,
@@ -76,6 +79,10 @@ pub fn run() {
             delete_model,
             get_active_model_command,
             set_active_model_command,
+            get_settings_command,
+            set_port_command,
+            set_ctx_size_command,
+            set_gpu_layers_command,
             start_server,
             stop_server,
             get_server_status,

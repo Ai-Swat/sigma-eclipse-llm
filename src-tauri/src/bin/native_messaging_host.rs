@@ -14,6 +14,7 @@ use sigma_eclipse_lib::ipc_state::{is_tauri_app_running, read_ipc_state};
 use sigma_eclipse_lib::server_manager::{
     check_server_running, get_status, start_server_process, stop_server_by_pid, ServerConfig,
 };
+use sigma_eclipse_lib::settings::get_server_settings;
 
 /// Global state for server process
 /// Note: This is process-local, shared state is in ipc_state.json
@@ -83,10 +84,9 @@ macro_rules! log {
 }
 
 /// Handle start_server command
-fn handle_start_server(params: Value) -> Result<Value> {
-    let port = params["port"].as_u64().unwrap_or(8080) as u16;
-    let ctx_size = params["ctx_size"].as_u64().unwrap_or(8192) as u32;
-    let gpu_layers = params["gpu_layers"].as_u64().unwrap_or(0) as u32;
+fn handle_start_server(_params: Value) -> Result<Value> {
+    // Get settings from settings.json
+    let (port, ctx_size, gpu_layers) = get_server_settings()?;
 
     log!("Starting server: port={}, ctx_size={}, gpu_layers={}", port, ctx_size, gpu_layers);
 
