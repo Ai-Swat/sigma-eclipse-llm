@@ -31,11 +31,11 @@ export const useAutoDownload = ({
     if (!modelName) return;
 
     // Prevent processing the same model multiple times
+    // IMPORTANT: Add to set IMMEDIATELY (before setTimeout) to prevent race conditions
     if (processedModels.current.has(modelName)) return;
+    processedModels.current.add(modelName);
 
     const checkAndDownloadFiles = async () => {
-      // Mark this model as being processed
-      processedModels.current.add(modelName);
 
       try {
         let wasSomeDownloads = false;

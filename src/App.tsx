@@ -68,17 +68,20 @@ function App() {
         // eslint-disable-next-line no-console
         console.log("Recommended settings:", settings);
 
-        setBaseModel(settings.recommended_model);
-        addLog(
-          `Auto-selected base model: ${settings.recommended_model} (RAM: ${settings.memory_gb} GB)`
-        );
-
-        // Load uncensored preference from localStorage
+        // IMPORTANT: Load uncensored preference FIRST (before setBaseModel)
+        // This ensures currentModel is calculated correctly on the first render
+        // and prevents duplicate toast notifications
         const savedUncensored = localStorage.getItem("isUncensored");
         const uncensored = savedUncensored === "true";
         if (savedUncensored !== null) {
           setIsUncensored(uncensored);
         }
+
+        // Now set baseModel - currentModel will be calculated correctly
+        setBaseModel(settings.recommended_model);
+        addLog(
+          `Auto-selected base model: ${settings.recommended_model} (RAM: ${settings.memory_gb} GB)`
+        );
 
         // Set active model based on uncensored preference
         const initialModel = uncensored
