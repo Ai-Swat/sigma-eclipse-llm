@@ -65,7 +65,7 @@ function App() {
         const uncensored = savedUncensored === "true" || isUncensoredModel;
 
         setBaseModel(baseModelName);
-        setIsUncensored(uncensored);
+          setIsUncensored(uncensored);
         setPort(settings.port);
         setCtxSize(settings.ctx_size);
         setGpuLayers(settings.gpu_layers);

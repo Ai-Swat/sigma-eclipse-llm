@@ -3,9 +3,12 @@
 // https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging
 
 use anyhow::{Context, Result};
+use chrono::Local;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::fs::{File, OpenOptions};
 use std::io::{self, Read, Write};
+use std::path::PathBuf;
 use std::process::Child;
 use std::sync::Mutex;
 
@@ -19,6 +22,41 @@ use sigma_eclipse_lib::settings::get_server_settings;
 /// Global state for server process
 /// Note: This is process-local, shared state is in ipc_state.json
 static SERVER_PROCESS: Mutex<Option<Child>> = Mutex::new(None);
+
+/// Global log file handle
+static LOG_FILE: Mutex<Option<File>> = Mutex::new(None);
+
+/// Get path to log file
+fn get_log_file_path() -> Option<PathBuf> {
+    let app_dir = dirs::data_dir()?.join("sigma-eclipse");
+    std::fs::create_dir_all(&app_dir).ok()?;
+    Some(app_dir.join("native-host.log"))
+}
+
+/// Initialize log file (overwrites on each start)
+fn init_log_file() {
+    if let Some(path) = get_log_file_path() {
+        if let Ok(file) = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)  // Overwrite file on each start
+            .open(&path)
+        {
+            let mut guard = LOG_FILE.lock().unwrap();
+            *guard = Some(file);
+        }
+    }
+}
+
+/// Write to log file
+fn write_to_log_file(message: &str) {
+    let mut guard = LOG_FILE.lock().unwrap();
+    if let Some(ref mut file) = *guard {
+        let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S%.3f");
+        let _ = writeln!(file, "[{}] {}", timestamp, message);
+        let _ = file.flush();
+    }
+}
 
 #[derive(Debug, Deserialize)]
 struct NativeMessage {
@@ -76,19 +114,19 @@ fn send_response(response: &NativeResponse) -> Result<()> {
     Ok(())
 }
 
-/// Log to stderr (stdout is reserved for Native Messaging Protocol)
+/// Log to stderr and file (stdout is reserved for Native Messaging Protocol)
 macro_rules! log {
     ($($arg:tt)*) => {
-        eprintln!("[Native Host] {}", format!($($arg)*));
+        let msg = format!($($arg)*);
+        eprintln!("[Native Host] {}", msg);
+        write_to_log_file(&msg);
     };
 }
 
 /// Handle start_server command
-fn handle_start_server(_params: Value) -> Result<Value> {
+fn handle_start_server() -> Result<Value> {
     // Get settings from settings.json
     let (port, ctx_size, gpu_layers) = get_server_settings()?;
-
-    log!("Starting server: port={}, ctx_size={}, gpu_layers={}", port, ctx_size, gpu_layers);
 
     // Use shared server manager
     let config = ServerConfig {
@@ -100,7 +138,7 @@ fn handle_start_server(_params: Value) -> Result<Value> {
     let child = start_server_process(config, false)?;
     let pid = child.id();
 
-    log!("Server started with PID: {}", pid);
+    log!("Server started: port={}, pid={}", port, pid);
 
     // Store process handle locally
     let mut process_guard = SERVER_PROCESS.lock().unwrap();
@@ -115,8 +153,6 @@ fn handle_start_server(_params: Value) -> Result<Value> {
 
 /// Handle stop_server command
 fn handle_stop_server() -> Result<Value> {
-    log!("Stopping server");
-
     let mut process_guard = SERVER_PROCESS.lock().unwrap();
 
     if let Some(mut child) = process_guard.take() {
@@ -129,7 +165,7 @@ fn handle_stop_server() -> Result<Value> {
         let _ = child.kill();
         let _ = child.wait();
 
-        log!("Server stopped (PID: {})", pid);
+        log!("Server stopped: pid={}", pid);
 
         Ok(json!({
             "message": "Server stopped",
@@ -138,6 +174,7 @@ fn handle_stop_server() -> Result<Value> {
         // Check if server is running elsewhere (e.g., via Tauri)
         if let Some(pid) = check_server_running()? {
             stop_server_by_pid(pid)?;
+            log!("Server stopped: pid={}", pid);
             return Ok(json!({
                 "message": format!("Server stopped (PID: {})", pid),
             }));
@@ -155,8 +192,6 @@ fn handle_get_server_status() -> Result<Value> {
     // Get additional info from IPC state
     let state = read_ipc_state()?;
 
-    log!("Server status: running={}", is_running);
-
     Ok(json!({
         "is_running": is_running,
         "pid": pid,
@@ -171,9 +206,6 @@ fn handle_get_server_status() -> Result<Value> {
 fn handle_is_downloading() -> Result<Value> {
     let state = read_ipc_state()?;
 
-    log!("Download status: downloading={}, progress={:?}", 
-        state.is_downloading, state.download_progress);
-
     Ok(json!({
         "is_downloading": state.is_downloading,
         "progress": state.download_progress,
@@ -184,8 +216,6 @@ fn handle_is_downloading() -> Result<Value> {
 fn handle_get_app_status() -> Result<Value> {
     let is_running = is_tauri_app_running()?;
     let state = read_ipc_state()?;
-
-    log!("App status: running={}, pid={:?}", is_running, state.tauri_app_pid);
 
     Ok(json!({
         "is_running": is_running,
@@ -199,55 +229,43 @@ fn handle_get_app_status() -> Result<Value> {
 fn handle_launch_app() -> Result<Value> {
     // Check if already running
     if is_tauri_app_running()? {
-        log!("App is already running");
         return Ok(json!({
             "launched": false,
             "message": "App is already running",
         }));
     }
 
-    log!("Launching Sigma Eclipse app...");
-
     #[cfg(target_os = "macos")]
     {
         use std::process::Command;
         
         // Try to launch via bundle identifier first
-        let result = Command::new("open")
+        if Command::new("open")
             .args(["-b", "com.sigma-eclipse.llm"])
-            .spawn();
-        
-        match result {
-            Ok(_) => {
-                log!("App launched successfully via bundle ID");
-                return Ok(json!({
-                    "launched": true,
-                    "message": "App launched successfully",
-                }));
-            }
-            Err(e) => {
-                log!("Failed to launch via bundle ID: {}", e);
-            }
+            .spawn()
+            .is_ok()
+        {
+            log!("App launched");
+            return Ok(json!({
+                "launched": true,
+                "message": "App launched successfully",
+            }));
         }
         
         // Fallback: try to launch by app name
-        let result = Command::new("open")
+        if Command::new("open")
             .args(["-a", "Sigma Eclipse LLM"])
-            .spawn();
-        
-        match result {
-            Ok(_) => {
-                log!("App launched successfully via app name");
-                return Ok(json!({
-                    "launched": true,
-                    "message": "App launched successfully",
-                }));
-            }
-            Err(e) => {
-                log!("Failed to launch via app name: {}", e);
-                return Err(anyhow::anyhow!("Failed to launch app: {}", e));
-            }
+            .spawn()
+            .is_ok()
+        {
+            log!("App launched");
+            return Ok(json!({
+                "launched": true,
+                "message": "App launched successfully",
+            }));
         }
+        
+        return Err(anyhow::anyhow!("Failed to launch app"));
     }
 
     #[cfg(target_os = "windows")]
@@ -265,17 +283,12 @@ fn handle_launch_app() -> Result<Value> {
         for path_opt in possible_paths.iter() {
             if let Some(path) = path_opt {
                 if path.exists() {
-                    match Command::new(path).spawn() {
-                        Ok(_) => {
-                            log!("App launched successfully from {:?}", path);
-                            return Ok(json!({
-                                "launched": true,
-                                "message": "App launched successfully",
-                            }));
-                        }
-                        Err(e) => {
-                            log!("Failed to launch from {:?}: {}", path, e);
-                        }
+                    if Command::new(path).spawn().is_ok() {
+                        log!("App launched");
+                        return Ok(json!({
+                            "launched": true,
+                            "message": "App launched successfully",
+                        }));
                     }
                 }
             }
@@ -296,15 +309,12 @@ fn handle_launch_app() -> Result<Value> {
         ];
         
         for cmd in possible_commands {
-            match Command::new(cmd).spawn() {
-                Ok(_) => {
-                    log!("App launched successfully via {}", cmd);
-                    return Ok(json!({
-                        "launched": true,
-                        "message": "App launched successfully",
-                    }));
-                }
-                Err(_) => continue,
+            if Command::new(cmd).spawn().is_ok() {
+                log!("App launched");
+                return Ok(json!({
+                    "launched": true,
+                    "message": "App launched successfully",
+                }));
             }
         }
         
@@ -319,10 +329,8 @@ fn handle_launch_app() -> Result<Value> {
 
 /// Process a single command
 fn process_command(message: NativeMessage) -> NativeResponse {
-    log!("Received command: {} (id: {})", message.command, message.id);
-
     let result = match message.command.as_str() {
-        "start_server" => handle_start_server(message.params),
+        "start_server" => handle_start_server(),
         "stop_server" => handle_stop_server(),
         "get_server_status" => handle_get_server_status(),
         "isDownloading" => handle_is_downloading(),
@@ -339,7 +347,7 @@ fn process_command(message: NativeMessage) -> NativeResponse {
             error: None,
         },
         Err(e) => {
-            log!("Error: {}", e);
+            log!("Error: {} (cmd: {})", e, message.command);
             NativeResponse {
                 id: message.id,
                 success: false,
@@ -351,27 +359,23 @@ fn process_command(message: NativeMessage) -> NativeResponse {
 }
 
 fn main() {
-    log!("Native Messaging Host started");
-    log!("Protocol: Chrome Native Messaging");
-    log!("App: Sigma Eclipse LLM");
+    // Initialize log file (overwrites previous)
+    init_log_file();
+    log!("Host started");
 
     // Main message loop
     loop {
         match read_message() {
             Ok(message) => {
                 let response = process_command(message);
-                if let Err(e) = send_response(&response) {
-                    log!("Failed to send response: {}", e);
+                if send_response(&response).is_err() {
                     break;
                 }
             }
-            Err(e) => {
-                log!("Failed to read message: {}", e);
-                break;
-            }
+            Err(_) => break,
         }
     }
 
-    log!("Native Messaging Host stopped");
+    log!("Host stopped");
 }
 
