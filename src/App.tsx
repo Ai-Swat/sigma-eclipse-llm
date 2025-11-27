@@ -256,15 +256,6 @@ function App() {
     }
   };
 
-  const handlePortChange = async (newPort: number) => {
-    setPort(newPort);
-    try {
-      await invoke<string>("set_port_command", { port: newPort });
-    } catch (error) {
-      console.error("Failed to save port:", error);
-    }
-  };
-
   const handleCtxSizeChange = async (newCtxSize: number) => {
     setCtxSize(newCtxSize);
     try {
@@ -280,6 +271,26 @@ function App() {
       await invoke<string>("set_gpu_layers_command", { gpuLayers: newGpuLayers });
     } catch (error) {
       console.error("Failed to save gpu_layers:", error);
+    }
+  };
+
+  const handleRestoreDefaults = async () => {
+    try {
+      const recommended = await invoke<RecommendedSettings>("get_recommended_settings");
+      
+      // Apply recommended settings
+      setCtxSize(recommended.recommended_ctx_size);
+      setGpuLayers(recommended.recommended_gpu_layers);
+      
+      // Save to backend
+      await invoke<string>("set_ctx_size_command", { ctxSize: recommended.recommended_ctx_size });
+      await invoke<string>("set_gpu_layers_command", { gpuLayers: recommended.recommended_gpu_layers });
+      
+      addLog(`Settings restored: ctx_size=${recommended.recommended_ctx_size}, gpu_layers=${recommended.recommended_gpu_layers}`);
+      toast.success("Settings restored to defaults");
+    } catch (error) {
+      console.error("Failed to restore defaults:", error);
+      toast.error(`Error restoring defaults: ${error}`);
     }
   };
 
@@ -342,7 +353,6 @@ function App() {
         appDataPath={appDataPath}
         baseModel={baseModel}
         isUncensored={isUncensored}
-        port={port}
         ctxSize={ctxSize}
         gpuLayers={gpuLayers}
         isDownloadingLlama={isDownloadingLlama}
@@ -353,9 +363,9 @@ function App() {
         onDownloadLlama={handleDownloadLlama}
         onDownloadModel={handleDownloadModel}
         onUncensoredChange={handleUncensoredChange}
-        onPortChange={handlePortChange}
         onCtxSizeChange={handleCtxSizeChange}
         onGpuLayersChange={handleGpuLayersChange}
+        onRestoreDefaults={handleRestoreDefaults}
         onClearAllData={handleClearAllData}
         isProduction={isProduction}
       />
