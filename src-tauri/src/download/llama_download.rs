@@ -239,6 +239,10 @@ pub async fn download_llama_cpp(app: AppHandle) -> Result<String, String> {
 
     let mut stream = response.bytes_stream();
     let mut downloaded: u64 = 0;
+    let mut last_emit_mb = 0u64;
+    let mut last_log_mb = 0u64;
+
+    log::info!("Starting download stream...");
 
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.map_err(|e| format!("Failed to read chunk: {}", e))?;
@@ -249,25 +253,59 @@ pub async fn download_llama_cpp(app: AppHandle) -> Result<String, String> {
 
         downloaded += chunk.len() as u64;
 
-        // Emit progress every chunk
-        let percentage = total_size.map(|total| (downloaded as f64 / total as f64) * 100.0);
-        
-        // Update IPC state with progress
-        let _ = update_download_status(true, percentage);
+        // Log progress every 50 MB to console
+        let current_log_mb = downloaded / (50 * 1024 * 1024);
+        if current_log_mb > last_log_mb {
+            last_log_mb = current_log_mb;
+            let percentage = total_size.map(|total| (downloaded as f64 / total as f64) * 100.0);
+            if let Some(pct) = percentage {
+                log::info!(
+                    "Downloaded: {:.2} MB ({:.1}%)",
+                    downloaded as f64 / 1_048_576.0,
+                    pct
+                );
+            } else {
+                log::info!("Downloaded: {:.2} MB", downloaded as f64 / 1_048_576.0);
+            }
+        }
 
-        let _ = app.emit(
-            "download-progress",
-            DownloadProgress {
-                downloaded,
-                total: total_size,
-                percentage,
-                message: format!(
+        // Emit progress every 10 MB to reduce event spam
+        let current_mb = downloaded / (10 * 1024 * 1024);
+        if current_mb > last_emit_mb || total_size.map_or(false, |total| downloaded >= total) {
+            last_emit_mb = current_mb;
+            let percentage = total_size.map(|total| (downloaded as f64 / total as f64) * 100.0);
+            let message = if let Some(total) = total_size {
+                format!(
+                    "Downloading llama.cpp: {:.2} MB / {:.2} MB",
+                    downloaded as f64 / 1_048_576.0,
+                    total as f64 / 1_048_576.0,
+                )
+            } else {
+                format!(
                     "Downloading llama.cpp: {:.2} MB",
                     downloaded as f64 / 1_048_576.0
-                ),
-            },
-        );
+                )
+            };
+
+            // Update IPC state with progress
+            let _ = update_download_status(true, percentage);
+
+            let _ = app.emit(
+                "download-progress",
+                DownloadProgress {
+                    downloaded,
+                    total: total_size,
+                    percentage,
+                    message,
+                },
+            );
+        }
     }
+
+    log::info!(
+        "Download completed! Total: {:.2} MB",
+        downloaded as f64 / 1_048_576.0
+    );
 
     // Flush and sync file to ensure all data is written to disk
     file.flush()
