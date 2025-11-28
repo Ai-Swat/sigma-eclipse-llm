@@ -15,7 +15,19 @@ services:
       - CARGO_TARGET_DIR=/app/src-tauri/target
       - RUSTFLAGS=-C target-feature=+crt-static
     working_dir: /app
-    command: bash -c "npm run tauri build -- --target x86_64-pc-windows-gnu"
+    command: bash -c "
+      echo '🔧 Creating placeholder for externalBin...' &&
+      mkdir -p src-tauri/binaries &&
+      touch src-tauri/binaries/sigma-eclipse-host-x86_64-pc-windows-gnu.exe &&
+      echo '🔧 Building native messaging host for Windows...' &&
+      cd src-tauri &&
+      cargo build --release --target x86_64-pc-windows-gnu --bin sigma-eclipse-host &&
+      cp target/x86_64-pc-windows-gnu/release/sigma-eclipse-host.exe binaries/sigma-eclipse-host-x86_64-pc-windows-gnu.exe &&
+      echo '✓ Native host built and copied to binaries/' &&
+      cd .. &&
+      echo '🔧 Building Tauri app for Windows...' &&
+      npm run tauri build -- --target x86_64-pc-windows-gnu
+      "
 
   # Helper service for interactive shell
   shell:

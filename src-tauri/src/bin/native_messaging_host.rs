@@ -273,18 +273,27 @@ fn handle_launch_app() -> Result<Value> {
         use std::process::Command;
         
         // Try to find and launch the app from common locations
+        // NSIS installer may put the app in different locations
         let possible_paths = [
+            // Direct in AppData\Local (NSIS default for per-user install)
             dirs::data_local_dir()
-                .map(|p| p.join("Programs").join("Sigma Eclipse LLM").join("Sigma Eclipse LLM.exe")),
+                .map(|p| p.join("Sigma Eclipse LLM").join("sigma-eclipse.exe")),
+            // In Programs subfolder
+            dirs::data_local_dir()
+                .map(|p| p.join("Programs").join("Sigma Eclipse LLM").join("sigma-eclipse.exe")),
+            // Explicit path via home dir
             dirs::home_dir()
-                .map(|p| p.join("AppData").join("Local").join("Programs").join("Sigma Eclipse LLM").join("Sigma Eclipse LLM.exe")),
+                .map(|p| p.join("AppData").join("Local").join("Sigma Eclipse LLM").join("sigma-eclipse.exe")),
+            dirs::home_dir()
+                .map(|p| p.join("AppData").join("Local").join("Programs").join("Sigma Eclipse LLM").join("sigma-eclipse.exe")),
         ];
         
         for path_opt in possible_paths.iter() {
             if let Some(path) = path_opt {
+                log!("Checking path: {:?}", path);
                 if path.exists() {
                     if Command::new(path).spawn().is_ok() {
-                        log!("App launched");
+                        log!("App launched from: {:?}", path);
                         return Ok(json!({
                             "launched": true,
                             "message": "App launched successfully",

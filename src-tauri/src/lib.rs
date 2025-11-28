@@ -105,8 +105,8 @@ pub fn run() {
             }
         })
         .setup(|_app| {
-            // Install native messaging manifests on startup
-            #[cfg(target_os = "macos")]
+            // Install native messaging manifests on startup (macOS and Windows)
+            #[cfg(any(target_os = "macos", target_os = "windows"))]
             {
                 if let Err(e) = native_messaging::install_native_messaging_manifests() {
                     log::warn!("Failed to install native messaging manifests: {}", e);

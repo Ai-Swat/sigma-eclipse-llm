@@ -44,6 +44,9 @@ if [ $? -eq 0 ]; then
     echo "   - .msi installer"
     echo "   - .exe executable"
     echo ""
+    echo "Native Messaging Host binary:"
+    echo "   src-tauri/binaries/sigma-eclipse-host-x86_64-pc-windows-gnu.exe"
+    echo ""
 else
     echo ""
     echo -e "${RED}✗ Build failed${NC}"
