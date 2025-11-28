@@ -2,6 +2,9 @@
 // Implements Chrome Native Messaging Protocol
 // https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging
 
+// Prevents additional console window on Windows in release, DO NOT REMOVE!!
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use anyhow::{Context, Result};
 use chrono::Local;
 use serde::{Deserialize, Serialize};
