@@ -273,7 +273,10 @@ fn handle_launch_app() -> Result<Value> {
 
     #[cfg(target_os = "windows")]
     {
+        use std::os::windows::process::CommandExt;
         use std::process::Command;
+        
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
         
         // Try to find and launch the app from common locations
         // NSIS installer may put the app in different locations
@@ -295,7 +298,11 @@ fn handle_launch_app() -> Result<Value> {
             if let Some(path) = path_opt {
                 log!("Checking path: {:?}", path);
                 if path.exists() {
-                    if Command::new(path).spawn().is_ok() {
+                    if Command::new(path)
+                        .creation_flags(CREATE_NO_WINDOW)
+                        .spawn()
+                        .is_ok() 
+                    {
                         log!("App launched from: {:?}", path);
                         return Ok(json!({
                             "launched": true,
