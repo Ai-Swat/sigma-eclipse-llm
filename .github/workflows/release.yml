@@ -14,25 +14,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # macOS builds
+          # macOS build (ARM only)
           - platform: macos-latest
             target: aarch64-apple-darwin
             rust_target: aarch64-apple-darwin
-          - platform: macos-latest
-            target: x86_64-apple-darwin
-            rust_target: x86_64-apple-darwin
-          # Universal macOS build
-          - platform: macos-latest
-            target: universal-apple-darwin
-            rust_target: universal-apple-darwin
           # Windows build
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             rust_target: x86_64-pc-windows-msvc
-          # Linux build
-          - platform: ubuntu-22.04
-            target: x86_64-unknown-linux-gnu
-            rust_target: x86_64-unknown-linux-gnu
 
     runs-on: ${{ matrix.platform }}
 
@@ -51,26 +40,33 @@ jobs:
         with:
           targets: ${{ matrix.rust_target }}
 
-      # For universal macOS build, need both targets
-      - name: Install Rust targets for universal build
-        if: matrix.target == 'universal-apple-darwin'
-        run: |
-          rustup target add aarch64-apple-darwin
-          rustup target add x86_64-apple-darwin
-
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
 
-      - name: Install dependencies (Ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-
       - name: Install frontend dependencies
         run: npm ci
+
+      # =====================================
+      # Build Native Messaging Host Binary
+      # =====================================
+      - name: Build native messaging host (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: |
+          mkdir -p src-tauri/binaries
+          cd src-tauri
+          cargo build --release --bin sigma-eclipse-host --target ${{ matrix.rust_target }}
+          cp target/${{ matrix.rust_target }}/release/sigma-eclipse-host binaries/sigma-eclipse-host-${{ matrix.target }}
+          chmod +x binaries/sigma-eclipse-host-${{ matrix.target }}
+
+      - name: Build native messaging host (Windows)
+        if: matrix.platform == 'windows-latest'
+        run: |
+          New-Item -ItemType Directory -Force -Path src-tauri\binaries
+          cd src-tauri
+          cargo build --release --bin sigma-eclipse-host --target ${{ matrix.rust_target }}
+          Copy-Item target\${{ matrix.rust_target }}\release\sigma-eclipse-host.exe binaries\sigma-eclipse-host-${{ matrix.target }}.exe
 
       # =====================================
       # macOS Code Signing & Notarization
@@ -98,22 +94,23 @@ jobs:
       # =====================================
       # Windows Code Signing
       # =====================================
-      - name: Setup Windows Code Signing (Windows)
-        if: matrix.platform == 'windows-latest'
-        env:
-          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-        run: |
-          # Decode certificate
-          echo "$env:WINDOWS_CERTIFICATE" | Out-File -FilePath certificate.txt -Encoding ascii
-          certutil -decode certificate.txt certificate.pfx
-          
-          # Import to certificate store
-          $password = ConvertTo-SecureString -String "$env:WINDOWS_CERTIFICATE_PASSWORD" -Force -AsPlainText
-          Import-PfxCertificate -FilePath certificate.pfx -CertStoreLocation Cert:\CurrentUser\My -Password $password
-          
-          # Clean up
-          Remove-Item certificate.txt, certificate.pfx
+      # Commented out: Using TAURI_SIGNING_PRIVATE_KEY approach instead
+      # - name: Setup Windows Code Signing (Windows)
+      #   if: matrix.platform == 'windows-latest'
+      #   env:
+      #     WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+      #     WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+      #   run: |
+      #     # Decode certificate
+      #     echo "$env:WINDOWS_CERTIFICATE" | Out-File -FilePath certificate.txt -Encoding ascii
+      #     certutil -decode certificate.txt certificate.pfx
+      #     
+      #     # Import to certificate store
+      #     $password = ConvertTo-SecureString -String "$env:WINDOWS_CERTIFICATE_PASSWORD" -Force -AsPlainText
+      #     Import-PfxCertificate -FilePath certificate.pfx -CertStoreLocation Cert:\CurrentUser\My -Password $password
+      #     
+      #     # Clean up
+      #     Remove-Item certificate.txt, certificate.pfx
 
       # =====================================
       # Build with Tauri Action
@@ -132,7 +129,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'Sigma Shield v__VERSION__'
+          releaseName: 'Sigma Eclipse v__VERSION__'
           releaseBody: |
             ## What's New
             
@@ -142,26 +139,19 @@ jobs:
             
             ### macOS
             - **Apple Silicon (M1/M2/M3)**: Download the `.dmg` file for ARM64
-            - **Intel**: Download the `.dmg` file for x86_64
-            - **Universal**: Works on both architectures
             
             ### Windows
             - Download the `.msi` installer
-            
-            ### Linux
-            - Download `.deb` for Debian/Ubuntu
-            - Download `.AppImage` for universal compatibility
           releaseDraft: true
           prerelease: false
-          args: ${{ matrix.target == 'universal-apple-darwin' && '--target universal-apple-darwin' || format('--target {0}', matrix.rust_target) }}
+          args: ${{ format('--target {0}', matrix.rust_target) }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: sigma-shield-${{ matrix.target }}
+          name: sigma-eclipse-${{ matrix.target }}
           path: |
             src-tauri/target/${{ matrix.rust_target }}/release/bundle/**/*
-            src-tauri/target/universal-apple-darwin/release/bundle/**/*
             !**/*/.DS_Store
           retention-days: 30
           if-no-files-found: ignore

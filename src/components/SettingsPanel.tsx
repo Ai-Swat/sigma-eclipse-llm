@@ -9,7 +9,6 @@ interface SettingsPanelProps {
   appDataPath: string;
   baseModel: string;
   isUncensored: boolean;
-  port: number;
   ctxSize: number;
   gpuLayers: number;
   isDownloadingLlama: boolean;
@@ -20,9 +19,9 @@ interface SettingsPanelProps {
   onDownloadLlama: () => void;
   onDownloadModel: () => void;
   onUncensoredChange: (checked: boolean) => void;
-  onPortChange: (port: number) => void;
   onCtxSizeChange: (ctxSize: number) => void;
   onGpuLayersChange: (gpuLayers: number) => void;
+  onRestoreDefaults: () => void;
   onClearAllData: () => void;
   isProduction: boolean;
 }
@@ -32,7 +31,6 @@ export const SettingsPanel = ({
   appDataPath,
   baseModel,
   isUncensored,
-  port,
   ctxSize,
   gpuLayers,
   isDownloadingLlama,
@@ -42,22 +40,17 @@ export const SettingsPanel = ({
   onDownloadLlama,
   onDownloadModel,
   onUncensoredChange,
-  onPortChange,
   onCtxSizeChange,
   onGpuLayersChange,
+  onRestoreDefaults,
   onClearAllData,
   isProduction,
 }: SettingsPanelProps) => {
   // Local state for input values to allow empty strings during editing
-  const [portValue, setPortValue] = useState(port.toString());
   const [ctxSizeValue, setCtxSizeValue] = useState(ctxSize.toString());
   const [gpuLayersValue, setGpuLayersValue] = useState(gpuLayers.toString());
 
   // Sync local state with props when they change externally
-  useEffect(() => {
-    setPortValue(port.toString());
-  }, [port]);
-
   useEffect(() => {
     setCtxSizeValue(ctxSize.toString());
   }, [ctxSize]);
@@ -149,33 +142,6 @@ export const SettingsPanel = ({
           <div className="section">
             <h2>Server Configuration</h2>
             <div className="form-group">
-              <label>Port:</label>
-              <input
-                type="number"
-                value={portValue}
-                onChange={(e) => {
-                  setPortValue(e.target.value);
-                  const parsed = parseInt(e.target.value);
-                  if (!isNaN(parsed)) {
-                    onPortChange(parsed);
-                  }
-                }}
-                onBlur={() => {
-                  const value = parseInt(portValue);
-                  if (isNaN(value) || value < 1024) {
-                    onPortChange(10345);
-                    setPortValue('10345');
-                  } else if (value > 65535) {
-                    onPortChange(65535);
-                    setPortValue('65535');
-                  }
-                }}
-                min="1024"
-                max="65535"
-              />
-            </div>
-
-            <div className="form-group">
               <label>Context Size:</label>
               <input
                 type="number"
@@ -230,6 +196,12 @@ export const SettingsPanel = ({
                 max="41"
               />
               <small className="help-text">Range: 0 - 41 layers (0 = CPU only)</small>
+            </div>
+
+            <div className="button-group">
+              <button className="secondary-button" onClick={onRestoreDefaults}>
+                Restore Defaults
+              </button>
             </div>
           </div>
 

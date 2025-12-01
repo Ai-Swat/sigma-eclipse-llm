@@ -1,4 +1,4 @@
-# Sigma Shield
+# Sigma Eclipse
 
 A Tauri + React + TypeScript application for managing LLM servers.
 
@@ -87,7 +87,7 @@ The built application will be in `src-tauri/target/release/bundle/`
 ## 📁 Project Structure
 
 ```
-sigma-shield/
+sigma-eclipse/
 ├── src/                    # React frontend
 │   ├── components/        # React components
 │   ├── hooks/            # Custom React hooks

@@ -72,16 +72,37 @@ pub struct ModelInfo {
 pub struct AppSettings {
     #[serde(default = "default_active_model")]
     pub active_model: String,
+    #[serde(default = "default_port")]
+    pub port: u16,
+    #[serde(default = "default_ctx_size")]
+    pub ctx_size: u32,
+    #[serde(default = "default_gpu_layers")]
+    pub gpu_layers: u32,
 }
 
 fn default_active_model() -> String {
     "model".to_string()
 }
 
+fn default_port() -> u16 {
+    10345
+}
+
+fn default_ctx_size() -> u32 {
+    8192
+}
+
+fn default_gpu_layers() -> u32 {
+    0
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
             active_model: default_active_model(),
+            port: default_port(),
+            ctx_size: default_ctx_size(),
+            gpu_layers: default_gpu_layers(),
         }
     }
 }

@@ -51,7 +51,7 @@ pub fn get_short_path(long_path: &PathBuf) -> Result<PathBuf> {
 pub fn get_app_data_dir() -> Result<PathBuf> {
     let app_dir = dirs::data_dir()
         .ok_or_else(|| anyhow!("Failed to get data directory"))?
-        .join("com.sigma-shield.llm");
+        .join("com.sigma-eclipse.llm");
 
     fs::create_dir_all(&app_dir)?;
     Ok(app_dir)

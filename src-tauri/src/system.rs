@@ -93,10 +93,13 @@ fn parse_vram_from_wmic(output_str: &str) -> Option<u64> {
 
 #[cfg(target_os = "windows")]
 fn try_detect_via_wmic() -> Option<GpuInfo> {
+    use std::os::windows::process::CommandExt;
     use std::process::Command;
 
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
     let output = Command::new("wmic")
         .args(&["path", "win32_VideoController", "get", "name,AdapterRAM"])
+        .creation_flags(CREATE_NO_WINDOW)
         .output()
         .ok()?;
 
@@ -118,13 +121,16 @@ fn try_detect_via_wmic() -> Option<GpuInfo> {
 
 #[cfg(target_os = "windows")]
 fn try_detect_vram_via_nvidia_smi() -> Option<u64> {
+    use std::os::windows::process::CommandExt;
     use std::process::Command;
 
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
     let output = Command::new("nvidia-smi")
         .args(&[
             "--query-gpu=memory.total",
             "--format=csv,noheader,nounits",
         ])
+        .creation_flags(CREATE_NO_WINDOW)
         .output()
         .ok()?;
 
@@ -258,8 +264,8 @@ fn get_platform_settings(memory_gb: u64) -> (String, u32) {
 // Main Settings Command
 // ============================================================================
 
-#[tauri::command]
-pub fn get_recommended_settings() -> Result<RecommendedSettings, String> {
+/// Get recommended settings based on system hardware (internal function)
+pub fn calculate_recommended_settings() -> Result<RecommendedSettings, String> {
     let memory_gb = get_system_memory_gb()?;
     let (recommended_model, recommended_ctx_size) = get_platform_settings(memory_gb);
     let recommended_gpu_layers = 41;
@@ -270,6 +276,11 @@ pub fn get_recommended_settings() -> Result<RecommendedSettings, String> {
         recommended_ctx_size,
         recommended_gpu_layers,
     })
+}
+
+#[tauri::command]
+pub fn get_recommended_settings() -> Result<RecommendedSettings, String> {
+    calculate_recommended_settings()
 }
 
 // ============================================================================

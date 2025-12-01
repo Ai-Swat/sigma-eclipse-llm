@@ -1,12 +1,17 @@
 use std::sync::Mutex;
+use std::thread;
+use std::time::Duration;
 use tauri::Manager;
 
 // Module declarations
 mod download;
+pub mod ipc_state;
+mod native_messaging;
 mod paths;
 mod server;
-mod settings;
-mod system;
+pub mod server_manager;
+pub mod settings;
+pub mod system;
 mod types;
 
 // Re-export command functions
@@ -15,7 +20,11 @@ use download::{
     download_model_by_name, list_available_models,
 };
 use server::{get_server_status, start_server, stop_server};
-use settings::{get_active_model_command, set_active_model_command};
+use settings::{
+    get_active_model_command, get_settings_command, set_active_model_command,
+    set_ctx_size_command, set_gpu_layers_command, set_port_command,
+};
+use native_messaging::{get_native_messaging_status, install_native_messaging};
 use system::{
     clear_all_data, clear_binaries, clear_models, get_app_data_path, get_logs_path,
     get_recommended_settings, get_system_memory_gb,
@@ -25,7 +34,7 @@ use types::ServerState;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let log_file_name = format!(
-        "sigma-shield-{}.log",
+        "sigma-eclipse-{}.log",
         chrono::Local::now().format("%Y%m%d-%H%M%S")
     );
 
@@ -57,7 +66,6 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_store::Builder::new().build())
         .manage(ServerState {
             process: Mutex::new(None),
         })
@@ -70,6 +78,10 @@ pub fn run() {
             delete_model,
             get_active_model_command,
             set_active_model_command,
+            get_settings_command,
+            set_port_command,
+            set_ctx_size_command,
+            set_gpu_layers_command,
             start_server,
             stop_server,
             get_server_status,
@@ -80,6 +92,8 @@ pub fn run() {
             clear_binaries,
             clear_models,
             clear_all_data,
+            install_native_messaging,
+            get_native_messaging_status,
         ])
         .on_window_event(|window, event| {
             // Hide window instead of closing when user clicks close button
@@ -89,6 +103,29 @@ pub fn run() {
                     log::error!("Failed to hide window: {}", e);
                 });
             }
+        })
+        .setup(|_app| {
+            // Install native messaging manifests on startup (macOS and Windows)
+            #[cfg(any(target_os = "macos", target_os = "windows"))]
+            {
+                if let Err(e) = native_messaging::install_native_messaging_manifests() {
+                    log::warn!("Failed to install native messaging manifests: {}", e);
+                }
+            }
+            
+            // Start heartbeat thread to signal that Tauri app is running
+            let pid = std::process::id();
+            thread::spawn(move || {
+                log::info!("Heartbeat thread started for PID: {}", pid);
+                loop {
+                    if let Err(e) = ipc_state::update_tauri_app_heartbeat(pid) {
+                        log::warn!("Failed to update heartbeat: {}", e);
+                    }
+                    thread::sleep(Duration::from_secs(3));
+                }
+            });
+            
+            Ok(())
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
@@ -109,6 +146,12 @@ pub fn run() {
             // Handle all exit scenarios - stop server before quitting
             tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit => {
                 log::info!("App is exiting, stopping server...");
+                
+                // Clear Tauri app status from IPC state
+                if let Err(e) = ipc_state::clear_tauri_app_status() {
+                    log::warn!("Failed to clear Tauri app status: {}", e);
+                }
+                
                 // Get server state and stop server if running
                 if let Some(state) = app_handle.try_state::<ServerState>() {
                     let mut process_guard = state.process.lock().unwrap();

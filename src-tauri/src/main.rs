@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    sigma_shield_lib::run()
+    sigma_eclipse_lib::run()
 }

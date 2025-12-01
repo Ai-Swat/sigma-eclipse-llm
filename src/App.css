@@ -78,6 +78,20 @@ button {
   background: var(--background-brand-primary-active);
 }
 
+.secondary-button {
+  background: transparent;
+  color: var(--text-colored-brand);
+  border: 1px solid var(--stroke-colored-brand);
+}
+
+.secondary-button:hover:not(:disabled) {
+  background: var(--background-brand-primary-subdued);
+}
+
+.secondary-button:active:not(:disabled) {
+  background: var(--background-brand-primary-subdued-hover);
+}
+
 button:disabled {
   opacity: 0.5;
   cursor: not-allowed;

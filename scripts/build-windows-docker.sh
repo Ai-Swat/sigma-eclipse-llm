@@ -5,7 +5,7 @@
 
 set -e
 
-echo "🔧 Building Sigma Shield for Windows using Docker..."
+echo "🔧 Building Sigma Eclipse for Windows using Docker..."
 echo ""
 
 # Colors
@@ -43,6 +43,9 @@ if [ $? -eq 0 ]; then
     echo "You can find:"
     echo "   - .msi installer"
     echo "   - .exe executable"
+    echo ""
+    echo "Native Messaging Host binary:"
+    echo "   src-tauri/binaries/sigma-eclipse-host-x86_64-pc-windows-gnu.exe"
     echo ""
 else
     echo ""
