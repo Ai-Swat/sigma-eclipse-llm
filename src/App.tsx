@@ -65,12 +65,14 @@ function App() {
         const uncensored = savedUncensored === "true" || isUncensoredModel;
 
         setBaseModel(baseModelName);
-          setIsUncensored(uncensored);
+        setIsUncensored(uncensored);
         setPort(settings.port);
         setCtxSize(settings.ctx_size);
         setGpuLayers(settings.gpu_layers);
 
-        addLog(`Settings loaded: port=${settings.port}, ctx_size=${settings.ctx_size}, gpu_layers=${settings.gpu_layers}`);
+        addLog(
+          `Settings loaded: port=${settings.port}, ctx_size=${settings.ctx_size}, gpu_layers=${settings.gpu_layers}`
+        );
         addLog(`Active model: ${settings.active_model}`);
 
         // Get recommended settings for memory info
@@ -277,16 +279,20 @@ function App() {
   const handleRestoreDefaults = async () => {
     try {
       const recommended = await invoke<RecommendedSettings>("get_recommended_settings");
-      
+
       // Apply recommended settings
       setCtxSize(recommended.recommended_ctx_size);
       setGpuLayers(recommended.recommended_gpu_layers);
-      
+
       // Save to backend
       await invoke<string>("set_ctx_size_command", { ctxSize: recommended.recommended_ctx_size });
-      await invoke<string>("set_gpu_layers_command", { gpuLayers: recommended.recommended_gpu_layers });
-      
-      addLog(`Settings restored: ctx_size=${recommended.recommended_ctx_size}, gpu_layers=${recommended.recommended_gpu_layers}`);
+      await invoke<string>("set_gpu_layers_command", {
+        gpuLayers: recommended.recommended_gpu_layers,
+      });
+
+      addLog(
+        `Settings restored: ctx_size=${recommended.recommended_ctx_size}, gpu_layers=${recommended.recommended_gpu_layers}`
+      );
       toast.success("Settings restored to defaults");
     } catch (error) {
       console.error("Failed to restore defaults:", error);

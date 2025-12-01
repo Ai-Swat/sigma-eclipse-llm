@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { DownloadProgress, ServerStatus } from "../types";
 import { ProgressBar } from "./ProgressBar";
+import { CheckBox } from "./checkbox";
 import CloseIcon from "../icons/x-close.svg?react";
 import "./SettingsPanel.css";
 
@@ -109,12 +110,10 @@ export const SettingsPanel = ({
 
             <div className="form-group" style={{ marginTop: "1rem" }}>
               <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <input
-                  type="checkbox"
+                <CheckBox
                   checked={isUncensored}
-                  onChange={(e) => onUncensoredChange(e.target.checked)}
+                  onChange={onUncensoredChange}
                   disabled={isDownloadingModel}
-                  style={{ width: "auto", cursor: "pointer" }}
                 />
                 <span style={{ fontWeight: "600" }}>Uncensored Model</span>
               </label>
@@ -157,10 +156,10 @@ export const SettingsPanel = ({
                   const value = parseInt(ctxSizeValue);
                   if (isNaN(value) || value < 6000) {
                     onCtxSizeChange(30000);
-                    setCtxSizeValue('30000');
+                    setCtxSizeValue("30000");
                   } else if (value > 100000) {
                     onCtxSizeChange(100000);
-                    setCtxSizeValue('100000');
+                    setCtxSizeValue("100000");
                   }
                 }}
                 min="6000"
@@ -186,10 +185,10 @@ export const SettingsPanel = ({
                   const value = parseInt(gpuLayersValue);
                   if (isNaN(value) || value < 0) {
                     onGpuLayersChange(0);
-                    setGpuLayersValue('0');
+                    setGpuLayersValue("0");
                   } else if (value > 41) {
                     onGpuLayersChange(41);
-                    setGpuLayersValue('41');
+                    setGpuLayersValue("41");
                   }
                 }}
                 min="0"
