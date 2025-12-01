@@ -1,0 +1,99 @@
+.wrapper {
+  display: flex;
+  align-items: center;
+  user-select: none;
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+  user-select: none;
+  margin-bottom: 0 !important;
+}
+
+.input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.custom {
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  transition: all 0.2s;
+  border: 1.4px solid var(--stroke-neutral-alfa-tertiary);
+}
+
+.custom:hover {
+  background-color: var(--background-neutral-secondary);
+}
+
+.custom:active {
+  background-color: var(--background-neutral-tertiary);
+}
+
+.input:checked + .custom {
+  background-color: var(--background-brand-primary);
+  border-color: var(--background-brand-primary);
+}
+
+.input:checked + .custom:hover {
+  background-color: var(--background-brand-primary-hover);
+  border-color: var(--background-brand-primary-hover);
+}
+
+.input:checked + .custom:active {
+  background-color: var(--background-brand-primary-active);
+  border-color: var(--background-brand-primary-active);
+}
+
+.check {
+  stroke: var(--background-neutral-global-tertiary);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.input:checked + .custom .check {
+  opacity: 1;
+}
+
+.text {
+  margin-left: 0.5rem;
+  user-select: none;
+}
+
+.label:has(.input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.input:disabled + .custom {
+  background-color: var(--background-neutral-secondary);
+  border-color: var(--stroke-neutral-alfa-tertiary);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.input:disabled:checked + .custom {
+  background-color: var(--background-brand-primary) !important;
+  border-color: var(--background-brand-primary) !important;
+}
+
+.input:disabled:checked + .custom .check {
+  stroke: var(--background-neutral-global-tertiary);
+  opacity: 0.5;
+}
+
+.label:has(.input:disabled) .text {
+  color: var(--text-neutral-tertiary);
+}

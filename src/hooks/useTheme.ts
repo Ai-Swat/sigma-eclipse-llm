@@ -1,23 +1,23 @@
 import { useState, useEffect } from "react";
 
 export const useTheme = () => {
-  const [theme, setTheme] = useState<"dark" | "white">("dark");
-
-  // Initialize theme from localStorage
-  useEffect(() => {
+  const getInitialTheme = () => {
     try {
-      const savedTheme = localStorage.getItem("theme");
-      if (savedTheme === "dark" || savedTheme === "white") {
-        setTheme(savedTheme);
-        document.documentElement.className = `theme-${savedTheme}`;
-      } else {
-        document.documentElement.className = "theme-dark";
-      }
-    } catch (error) {
-      console.error("Failed to load theme:", error);
-      document.documentElement.className = "theme-dark";
+      const saved = localStorage.getItem("theme");
+      if (saved === "dark" || saved === "white") return saved;
+    } catch {
+      // ignore
     }
-  }, []);
+    return "dark"; // fallback
+  };
+
+  const [theme, setTheme] = useState<"dark" | "white">(getInitialTheme);
+
+  // применяем класс только как side-effect синхронизации
+  useEffect(() => {
+    document.documentElement.className = `theme-${theme}`;
+    localStorage.setItem("theme", theme);
+  }, [theme]);
 
   // Toggle theme and save to localStorage
   const toggleTheme = (newTheme: "dark" | "white") => {

@@ -19,7 +19,7 @@ export const useAutoDownload = ({
   const [isDownloadingModel, setIsDownloadingModel] = useState(false);
   const [isModelAlreadyDownloaded, setIsModelAlreadyDownloaded] = useState(false);
   const [isLlamaAlreadyDownloaded, setIsLlamaAlreadyDownloaded] = useState(false);
-  
+
   // Use ref to track if download is already in progress (persists between renders)
   const llamaDownloadInProgress = useRef(false);
   const modelDownloadInProgress = useRef(false);
@@ -36,14 +36,13 @@ export const useAutoDownload = ({
     processedModels.current.add(modelName);
 
     const checkAndDownloadFiles = async () => {
-
       try {
         let wasSomeDownloads = false;
 
         // Check if llama.cpp needs update using backend command (works cross-platform)
         let needsLlamaUpdate = false;
         let llamaExists = false;
-        
+
         try {
           needsLlamaUpdate = await invoke<boolean>("check_llama_version");
           // If check_llama_version returns false, llama exists and is up to date
@@ -53,7 +52,8 @@ export const useAutoDownload = ({
           }
         } catch (error) {
           // If check fails, assume llama doesn't exist
-          console.log("llama.cpp not found or check failed, will download");
+          // eslint-disable-next-line no-console
+          console.log("llama.cpp not found or check failed, will download", error);
           needsLlamaUpdate = true;
           llamaExists = false;
         }
@@ -73,8 +73,8 @@ export const useAutoDownload = ({
         if ((!llamaExists || needsLlamaUpdate) && !llamaDownloadInProgress.current) {
           wasSomeDownloads = true;
           llamaDownloadInProgress.current = true; // Set ref immediately to prevent race condition
-          
-          const message = needsLlamaUpdate 
+
+          const message = needsLlamaUpdate
             ? "llama.cpp update available, downloading new version..."
             : "llama.cpp not found, downloading automatically...";
           addLog(message);
@@ -106,7 +106,7 @@ export const useAutoDownload = ({
         if (!modelExists && modelName && !modelDownloadInProgress.current) {
           wasSomeDownloads = true;
           modelDownloadInProgress.current = true; // Set ref immediately to prevent race condition
-          
+
           addLog(`Model '${modelName}' not found, downloading automatically...`);
           setIsDownloadingModel(true);
           setDownloadProgress(null);
