@@ -1,7 +1,7 @@
 # Sigma Eclipse LLM - Build Makefile
 # Священные команды сборки во славу Омниссии
 
-.PHONY: all dev build build-host build-all build-windows clean install-deps help
+.PHONY: all dev build build-host build-all build-windows clean install-deps help version bump-patch bump-minor bump-major
 
 # Detect OS and architecture
 UNAME_S := $(shell uname -s)
@@ -121,6 +121,22 @@ fmt:
 	cd $(TAURI_DIR) && cargo fmt
 	npm run format 2>/dev/null || true
 
+# Show current version
+version:
+	@grep -o '"version": "[^"]*"' package.json | head -1 | cut -d'"' -f4
+
+# Bump patch version (0.1.0 -> 0.1.1)
+bump-patch:
+	@./scripts/bump-version.sh patch
+
+# Bump minor version (0.1.0 -> 0.2.0)
+bump-minor:
+	@./scripts/bump-version.sh minor
+
+# Bump major version (0.1.0 -> 1.0.0)
+bump-major:
+	@./scripts/bump-version.sh major
+
 # Show help
 help:
 	@echo "Sigma Eclipse LLM - Build Commands"
@@ -142,6 +158,10 @@ help:
 	@echo "  test          - Run tests"
 	@echo "  check         - Check code without building"
 	@echo "  fmt           - Format code"
+	@echo "  version       - Show current version"
+	@echo "  bump-patch    - Bump patch version (0.1.0 -> 0.1.1)"
+	@echo "  bump-minor    - Bump minor version (0.1.0 -> 0.2.0)"
+	@echo "  bump-major    - Bump major version (0.1.0 -> 1.0.0)"
 	@echo "  help          - Show this help message"
 	@echo ""
 	@echo "Current target: $(TARGET)"
