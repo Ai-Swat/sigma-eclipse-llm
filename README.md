@@ -57,7 +57,6 @@ Download the latest release for your platform:
 |----------|----------|
 | macOS (Universal) | [Sigma Eclipse.dmg](https://github.com/ai-swat/sigma-eclipse/releases/latest) |
 | Windows | [Sigma Eclipse Setup.exe](https://github.com/ai-swat/sigma-eclipse/releases/latest) |
-| Linux | [Sigma Eclipse.AppImage](https://github.com/ai-swat/sigma-eclipse/releases/latest) |
 
 ### First Launch
 
