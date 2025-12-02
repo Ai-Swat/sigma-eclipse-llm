@@ -55,6 +55,11 @@ jobs:
         if: matrix.platform == 'macos-latest'
         run: |
           mkdir -p src-tauri/binaries
+          # Create placeholder files for all targets so Tauri's externalBin check passes
+          touch src-tauri/binaries/sigma-eclipse-host-aarch64-apple-darwin
+          touch src-tauri/binaries/sigma-eclipse-host-x86_64-unknown-linux-gnu
+          touch src-tauri/binaries/sigma-eclipse-host-x86_64-pc-windows-msvc.exe
+
           cd src-tauri
           cargo build --release --bin sigma-eclipse-host --target ${{ matrix.rust_target }}
           cp target/${{ matrix.rust_target }}/release/sigma-eclipse-host binaries/sigma-eclipse-host-${{ matrix.target }}
@@ -63,7 +68,13 @@ jobs:
       - name: Build native messaging host (Windows)
         if: matrix.platform == 'windows-latest'
         run: |
-          New-Item -ItemType Directory -Force -Path src-tauri\binaries
+          New-Item -ItemType Directory -Force -Path src-tauri\binaries | Out-Null
+
+          # Create placeholder files for all targets so Tauri's externalBin check passes
+          New-Item -ItemType File -Force -Path src-tauri\binaries\sigma-eclipse-host-aarch64-apple-darwin | Out-Null
+          New-Item -ItemType File -Force -Path src-tauri\binaries\sigma-eclipse-host-x86_64-unknown-linux-gnu | Out-Null
+          New-Item -ItemType File -Force -Path src-tauri\binaries\sigma-eclipse-host-x86_64-pc-windows-msvc.exe | Out-Null
+
           cd src-tauri
           cargo build --release --bin sigma-eclipse-host --target ${{ matrix.rust_target }}
           Copy-Item target\${{ matrix.rust_target }}\release\sigma-eclipse-host.exe binaries\sigma-eclipse-host-${{ matrix.target }}.exe
