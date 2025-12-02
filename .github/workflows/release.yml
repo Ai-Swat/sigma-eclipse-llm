@@ -57,8 +57,8 @@ jobs:
           mkdir -p src-tauri/binaries
           cd src-tauri
           cargo build --release --bin sigma-eclipse-host --target ${{ matrix.rust_target }}
-          cp target/${{ matrix.rust_target }}/release/sigma-eclipse-host binaries/sigma-eclipse-host-aarch64-apple-darwin
-          chmod +x binaries/sigma-eclipse-host-aarch64-apple-darwin
+          cp target/${{ matrix.rust_target }}/release/sigma-eclipse-host binaries/sigma-eclipse-host-${{ matrix.target }}
+          chmod +x binaries/sigma-eclipse-host-${{ matrix.target }}
 
       - name: Build native messaging host (Windows)
         if: matrix.platform == 'windows-latest'
