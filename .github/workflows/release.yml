@@ -18,10 +18,12 @@ jobs:
           - platform: macos-latest
             target: aarch64-apple-darwin
             rust_target: aarch64-apple-darwin
+            bundles: dmg
           # Windows build
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             rust_target: x86_64-pc-windows-msvc
+            bundles: nsis
 
     runs-on: ${{ matrix.platform }}
 
@@ -126,11 +128,6 @@ jobs:
       # =====================================
       # Build with Tauri Action
       # =====================================
-      - name: Force NSIS bundles on Windows
-        if: matrix.platform == 'windows-latest'
-        shell: pwsh
-        run: echo 'TAURI_BUNDLE_TARGETS=nsis' | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
@@ -157,6 +154,7 @@ jobs:
             - Download the `.exe` installer
           releaseDraft: true
           prerelease: false
+          bundles: ${{ matrix.bundles }}
           args: ${{ format('--target {0} --verbose', matrix.rust_target) }}
 
       - name: Upload artifacts
