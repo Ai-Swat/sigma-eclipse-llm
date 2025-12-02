@@ -1,5 +1,5 @@
 # Sigma Eclipse LLM - Build Makefile
-# Священные команды сборки во славу Омниссии
+# Build commands
 
 .PHONY: all dev build build-host build-all build-windows clean install-deps help version bump-patch bump-minor bump-major publish
 

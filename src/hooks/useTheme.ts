@@ -13,7 +13,7 @@ export const useTheme = () => {
 
   const [theme, setTheme] = useState<"dark" | "white">(getInitialTheme);
 
-  // применяем класс только как side-effect синхронизации
+  // apply class only as a side-effect of synchronization
   useEffect(() => {
     document.documentElement.className = `theme-${theme}`;
     localStorage.setItem("theme", theme);
