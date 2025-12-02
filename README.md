@@ -112,7 +112,6 @@ Access settings via the ⚙️ gear icon:
 - [Rust](https://rustup.rs/) (latest stable)
 - Platform-specific dependencies:
   - **macOS:** `xcode-select --install`
-  - **Linux:** `sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev`
   - **Windows:** Visual Studio C++ Build Tools
 
 ### Quick Start
