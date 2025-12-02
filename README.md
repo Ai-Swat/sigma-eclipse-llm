@@ -1,137 +1,194 @@
-# Sigma Eclipse
+<div align="center">
 
-A Tauri + React + TypeScript application for managing LLM servers.
+<img src="src/assets/logo2.png" alt="Sigma Eclipse Logo" width="128" height="128">
 
-## 📋 Prerequisites
+# Sigma Eclipse LLM
 
-Before starting development, make sure you have the following components installed:
+**Run powerful AI locally — no cloud, no limits, complete privacy.**
 
-### Required Dependencies
+[![License](https://img.shields.io/badge/license-PolyForm%20NC-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)](#installation)
+[![Tauri](https://img.shields.io/badge/built%20with-Tauri%202-FFC131?logo=tauri)](https://tauri.app/)
+[![llama.cpp](https://img.shields.io/badge/powered%20by-llama.cpp-green)](https://github.com/ggerganov/llama.cpp)
 
-1. **Node.js** (v18 or higher)
-   - Download: https://nodejs.org/
+[Features](#-features) • [Installation](#-installation) • [How It Works](#-how-it-works) • [Development](#-development) • [License](#-license)
 
-2. **Rust** (latest stable)
-   ```bash
-   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-   ```
+---
 
-3. **System Dependencies for Tauri**
-   
-   **macOS:**
-   ```bash
-   xcode-select --install
-   ```
+</div>
 
-   **Linux (Debian/Ubuntu):**
-   ```bash
-   sudo apt update
-   sudo apt install libwebkit2gtk-4.1-dev \
-     build-essential \
-     curl \
-     wget \
-     file \
-     libxdo-dev \
-     libssl-dev \
-     libayatana-appindicator3-dev \
-     librsvg2-dev
-   ```
+## 🚀 What is Sigma Eclipse?
 
-   **Windows:**
-   - Microsoft Visual Studio C++ Build Tools
-   - WebView2 (usually already installed on Windows 11)
+Sigma Eclipse is a lightweight desktop application that lets you run large language models (LLMs) locally on your machine. No API keys, no subscriptions, no data leaving your computer — just pure, private AI at your fingertips.
 
-## 🚀 Development Setup
+Built with [Tauri](https://tauri.app/) and powered by [llama.cpp](https://github.com/ggerganov/llama.cpp), Sigma Eclipse combines native performance with a beautiful, intuitive interface.
 
-### 1. Install Dependencies
+<div align="center">
+<img src="https://github.com/user-attachments/assets/placeholder-screenshot" alt="Sigma Eclipse Screenshot" width="400">
 
-```bash
-npm install
+*One-click AI. Zero complexity.*
+</div>
+
+## ✨ Features
+
+### 🎯 Dead Simple
+- **One-click setup** — automatically downloads everything you need
+- **Zero configuration** — smart defaults that just work
+- **Clean interface** — no clutter, no confusion
+
+### 🔒 Privacy First
+- **100% local** — your data never leaves your machine
+- **No accounts** — no sign-ups, no tracking, no telemetry
+- **Offline capable** — works without internet after initial setup
+
+### ⚡ Powerful
+- **GPU acceleration** — automatic GPU detection and optimization
+- **Multiple models** — switch between models easily
+- **Native performance** — Rust backend with minimal resource usage
+- **Browser integration** — seamless connection with Sigma browser extension
+
+### 🌍 Cross-Platform
+- **macOS** (Intel & Apple Silicon)
+- **Windows** (x64)
+- **Linux** (x64)
+
+## 📦 Installation
+
+### Download
+
+Download the latest release for your platform:
+
+| Platform | Download |
+|----------|----------|
+| macOS (Universal) | [Sigma Eclipse.dmg](https://github.com/ai-swat/sigma-eclipse/releases/latest) |
+| Windows | [Sigma Eclipse Setup.exe](https://github.com/ai-swat/sigma-eclipse/releases/latest) |
+| Linux | [Sigma Eclipse.AppImage](https://github.com/ai-swat/sigma-eclipse/releases/latest) |
+
+### First Launch
+
+1. **Open Sigma Eclipse**
+2. **Wait for automatic setup** — the app downloads llama.cpp and the default model (~2-4 GB)
+3. **Click "Start"** — your local AI server is now running!
+
+That's it. No terminal commands, no manual downloads, no config files.
+
+## 🔧 How It Works
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Sigma Eclipse                            │
+│                                                              │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐   │
+│  │   React UI   │◄──►│  Tauri Core  │◄──►│  llama.cpp   │   │
+│  │  (Frontend)  │    │    (Rust)    │    │   (Server)   │   │
+│  └──────────────┘    └──────────────┘    └──────────────┘   │
+│                              │                               │
+│                              ▼                               │
+│                   ┌──────────────────┐                      │
+│                   │  Native Messaging │                      │
+│                   │   (Browser API)   │                      │
+│                   └──────────────────┘                      │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### 2. Run in Development Mode
+**Sigma Eclipse** manages a local llama.cpp server that provides an OpenAI-compatible API. This means:
+
+- 🌐 **Local API endpoint** at `http://localhost:8080`
+- 🔌 **Compatible** with any tool that supports OpenAI API
+- 🧩 **Native messaging** enables browser extensions to communicate directly
+
+## ⚙️ Configuration
+
+Access settings via the ⚙️ gear icon:
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| **Context Size** | Maximum conversation context (tokens) | Auto-detected |
+| **GPU Layers** | Number of layers offloaded to GPU | Auto-detected |
+| **Model** | Select from available models | Gemma 2B |
+
+> 💡 **Tip:** Sigma Eclipse automatically detects your hardware and suggests optimal settings.
+
+## 🛠️ Development
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) v18+
+- [Rust](https://rustup.rs/) (latest stable)
+- Platform-specific dependencies:
+  - **macOS:** `xcode-select --install`
+  - **Linux:** `sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev`
+  - **Windows:** Visual Studio C++ Build Tools
+
+### Quick Start
 
 ```bash
+# Clone the repository
+git clone https://github.com/ai-swat/sigma-eclipse.git
+cd sigma-eclipse
+
+# Install dependencies
+npm install
+
+# Run in development mode
 npm run tauri dev
 ```
 
-This command will:
-- Start the Vite dev server for the frontend
-- Compile the Rust backend
-- Open the application with hot-reload
-
-### 3. Alternative Launch (Frontend Only)
-
-If you need to work only with the UI without Tauri:
-
-```bash
-npm run dev
-```
-
-## 🏗️ Building the Project
-
-### Development Build
-
-```bash
-npm run tauri build -- --debug
-```
-
-### Production Build
+### Build for Production
 
 ```bash
 npm run tauri build
 ```
 
-The built application will be in `src-tauri/target/release/bundle/`
+Built artifacts will be in `src-tauri/target/release/bundle/`
 
-## 📁 Project Structure
+### Project Structure
 
 ```
 sigma-eclipse/
 ├── src/                    # React frontend
-│   ├── components/        # React components
-│   ├── hooks/            # Custom React hooks
-│   ├── styles/           # CSS styles
-│   └── types/            # TypeScript types
-├── src-tauri/            # Rust backend
+│   ├── components/         # UI components
+│   ├── hooks/              # React hooks
+│   ├── styles/             # CSS styles
+│   └── types/              # TypeScript types
+├── src-tauri/              # Rust backend
 │   ├── src/
-│   │   ├── main.rs       # Entry point
-│   │   ├── server.rs     # Server management logic
-│   │   ├── download.rs   # File download logic
-│   │   └── ...
-│   ├── Cargo.toml        # Rust dependencies
-│   └── tauri.conf.json   # Tauri configuration
-├── package.json          # Node.js dependencies
-└── vite.config.ts        # Vite configuration
+│   │   ├── main.rs         # Entry point
+│   │   ├── server.rs       # LLM server management
+│   │   ├── download/       # Model & binary downloads
+│   │   └── native_messaging.rs
+│   └── tauri.conf.json     # Tauri configuration
+└── package.json
 ```
 
-## 🛠️ Useful Commands
+## 🤝 Contributing
 
-```bash
-# Check Rust code
-cd src-tauri
-cargo check
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-# Run Rust tests
-cargo test
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-# Format Rust code
-cargo fmt
+## 📜 License
 
-# Check TypeScript
-npm run build
+This project is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE).
 
-# Clean build artifacts
-cd src-tauri
-cargo clean
-```
+**TL;DR:** Free for personal, educational, and non-commercial use. Contact us for commercial licensing.
 
-## 🔧 Recommended IDE Setup
+## 🙏 Acknowledgments
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+- [llama.cpp](https://github.com/ggerganov/llama.cpp) — The amazing LLM inference engine
+- [Tauri](https://tauri.app/) — Framework for building tiny, fast desktop apps
+- [Hugging Face](https://huggingface.co/) — Model hosting and community
 
-## 📚 Additional Documentation
+---
 
-- [Tauri Documentation](https://tauri.app/)
-- [Vite Documentation](https://vitejs.dev/)
-- [React Documentation](https://react.dev/)
+<div align="center">
+
+**Made with ❤️ by [AI SWAT](https://github.com/ai-swat)**
+
+[⬆ Back to Top](#sigma-eclipse-llm)
+
+</div>
