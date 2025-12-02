@@ -3,3 +3,7 @@ export { useServerStatus } from "./useServerStatus";
 export { useLogs } from "./useLogs";
 export { useDownloadProgress } from "./useDownloadProgress";
 export { useAutoDownload } from "./useAutoDownload";
+export { useSettings } from "./useSettings";
+export { useServerControl } from "./useServerControl";
+export { useModelDownload } from "./useModelDownload";
+export { useApp } from "./useApp";

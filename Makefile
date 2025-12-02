@@ -1,7 +1,7 @@
 # Sigma Eclipse LLM - Build Makefile
 # Священные команды сборки во славу Омниссии
 
-.PHONY: all dev build build-host build-all build-windows clean install-deps help version bump-patch bump-minor bump-major
+.PHONY: all dev build build-host build-all build-windows clean install-deps help version bump-patch bump-minor bump-major publish
 
 # Detect OS and architecture
 UNAME_S := $(shell uname -s)
@@ -137,6 +137,15 @@ bump-minor:
 bump-major:
 	@./scripts/bump-version.sh major
 
+# Create git tag with current version and push
+publish:
+	@VERSION=$$(grep -o '"version": "[^"]*"' package.json | head -1 | cut -d'"' -f4); \
+	echo "🏷️  Creating tag v$$VERSION..."; \
+	git tag -a "v$$VERSION" -m "Release v$$VERSION"; \
+	echo "📤 Pushing tag v$$VERSION..."; \
+	git push origin "v$$VERSION"; \
+	echo "✅ Published v$$VERSION"
+
 # Show help
 help:
 	@echo "Sigma Eclipse LLM - Build Commands"
@@ -162,6 +171,7 @@ help:
 	@echo "  bump-patch    - Bump patch version (0.1.0 -> 0.1.1)"
 	@echo "  bump-minor    - Bump minor version (0.1.0 -> 0.2.0)"
 	@echo "  bump-major    - Bump major version (0.1.0 -> 1.0.0)"
+	@echo "  publish       - Create git tag with current version and push"
 	@echo "  help          - Show this help message"
 	@echo ""
 	@echo "Current target: $(TARGET)"
