@@ -7,7 +7,7 @@
 **Run powerful AI locally — no cloud, no limits, complete privacy.**
 
 [![License](https://img.shields.io/badge/license-PolyForm%20NC-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20)](#installation)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-blue)](#installation)
 [![Tauri](https://img.shields.io/badge/built%20with-Tauri%202-FFC131?logo=tauri)](https://tauri.app/)
 [![llama.cpp](https://img.shields.io/badge/powered%20by-llama.cpp-green)](https://github.com/ggerganov/llama.cpp)
 
