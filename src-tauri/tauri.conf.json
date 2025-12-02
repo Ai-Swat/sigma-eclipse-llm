@@ -43,7 +43,7 @@
       "binaries/sigma-eclipse-host"
     ],
     "resources": [
-      "icons/icon_transparent.ico"
+      "icons/icon.ico"
     ],
     "macOS": {
       "frameworks": [],
