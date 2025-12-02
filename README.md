@@ -7,7 +7,7 @@
 **Run powerful AI locally — no cloud, no limits, complete privacy.**
 
 [![License](https://img.shields.io/badge/license-PolyForm%20NC-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows)](#installation)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20)](#installation)
 [![Tauri](https://img.shields.io/badge/built%20with-Tauri%202-FFC131?logo=tauri)](https://tauri.app/)
 [![llama.cpp](https://img.shields.io/badge/powered%20by-llama.cpp-green)](https://github.com/ggerganov/llama.cpp)
 
@@ -43,7 +43,7 @@ Built with [Tauri](https://tauri.app/) and powered by [llama.cpp](https://github
 - **Browser integration** — seamless connection with Sigma browser extension
 
 ### 🌍 Cross-Platform
-- **macOS** (Intel & Apple Silicon)
+- **macOS** (Apple Silicon)
 - **Windows** (x64)
 
 ## 📦 Installation
@@ -54,7 +54,7 @@ Download the latest release for your platform:
 
 | Platform | Download |
 |----------|----------|
-| macOS (Universal) | [Sigma Eclipse.dmg](https://github.com/ai-swat/sigma-eclipse/releases/latest) |
+| macOS (ARM) | [Sigma Eclipse.dmg](https://github.com/ai-swat/sigma-eclipse/releases/latest) |
 | Windows | [Sigma Eclipse Setup.exe](https://github.com/ai-swat/sigma-eclipse/releases/latest) |
 
 ### First Launch
