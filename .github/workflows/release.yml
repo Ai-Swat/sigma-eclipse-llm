@@ -151,13 +151,13 @@ jobs:
             ## Downloads
             
             ### macOS
-            - **Apple Silicon (M1/M2/M3)**: Download the `.dmg` file for ARM64
+            - **Apple Silicon (M-chip series)**: Download the `.dmg` file for ARM64
             
             ### Windows
-            - Download the `.msi` installer
+            - Download the `.exe` installer
           releaseDraft: true
           prerelease: false
-          args: ${{ format('--target {0}', matrix.rust_target) }}
+          args: ${{ format('--target {0} --verbose', matrix.rust_target) }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
