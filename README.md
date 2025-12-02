@@ -60,7 +60,7 @@ Download the latest release for your platform:
 ### First Launch
 
 1. **Open Sigma Eclipse**
-2. **Wait for automatic setup** — the app downloads llama.cpp and the default model (~2-4 GB)
+2. **Wait for automatic setup** — the app downloads llama.cpp and the default model (~3-6 GB)
 3. **Click "Start"** — your local AI server is now running!
 
 That's it. No terminal commands, no manual downloads, no config files.
