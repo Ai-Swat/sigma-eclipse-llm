@@ -18,12 +18,12 @@ jobs:
           - platform: macos-latest
             target: aarch64-apple-darwin
             rust_target: aarch64-apple-darwin
-            bundles: dmg
+            bundle_arg: dmg
           # Windows build
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             rust_target: x86_64-pc-windows-msvc
-            bundles: nsis
+            bundle_arg: nsis
 
     runs-on: ${{ matrix.platform }}
 
@@ -154,8 +154,7 @@ jobs:
             - Download the `.exe` installer
           releaseDraft: true
           prerelease: false
-          bundles: ${{ matrix.bundles }}
-          args: ${{ format('--target {0} --verbose', matrix.rust_target) }}
+          args: ${{ format('--target {0} --bundles {1} --verbose', matrix.rust_target, matrix.bundle_arg) }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
