@@ -23,11 +23,6 @@ Sigma Eclipse is a lightweight desktop application that lets you run large langu
 
 Built with [Tauri](https://tauri.app/) and powered by [llama.cpp](https://github.com/ggerganov/llama.cpp), Sigma Eclipse combines native performance with a beautiful, intuitive interface.
 
-<div align="center">
-<img src="https://github.com/user-attachments/assets/placeholder-screenshot" alt="Sigma Eclipse Screenshot" width="400">
-
-*One-click AI. Zero complexity.*
-</div>
 
 ## ✨ Features
 
