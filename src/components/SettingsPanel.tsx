@@ -50,6 +50,7 @@ export const SettingsPanel = ({
   // Local state for input values to allow empty strings during editing
   const [ctxSizeValue, setCtxSizeValue] = useState(ctxSize.toString());
   const [gpuLayersValue, setGpuLayersValue] = useState(gpuLayers.toString());
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   // Sync local state with props when they change externally
   useEffect(() => {
@@ -209,12 +210,38 @@ export const SettingsPanel = ({
             <p className="warning-text">Clear downloaded files to free up space</p>
 
             <div className="button-group">
-              <button onClick={onClearAllData} className="danger-button-severe">
+              <button onClick={() => setShowClearConfirm(true)} className="danger-button-severe">
                 Clear All Data
               </button>
             </div>
           </div>
         </div>
+
+        {showClearConfirm && (
+          <div className="confirm-overlay" onClick={() => setShowClearConfirm(false)}>
+            <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
+              <h3>Confirm Clear All Data</h3>
+              <p>Are you sure you want to clear all downloaded data? This action cannot be undone.</p>
+              <div className="confirm-buttons">
+                <button
+                  className="secondary-button"
+                  onClick={() => setShowClearConfirm(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="danger-button-severe"
+                  onClick={() => {
+                    onClearAllData();
+                    setShowClearConfirm(false);
+                  }}
+                >
+                  Clear All Data
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -45,7 +45,7 @@ import { resolveResource } from "@tauri-apps/api/path";
 
   // Load icon.ico for tray icon
   // Get resource directory and construct path to icon
-  const iconFileName = "icon.ico";
+  const iconFileName = "icon_transparent.ico";
 
   let trayIconImage: Image | string;
   try {
