@@ -11,6 +11,8 @@
     "core:window:allow-hide",
     "core:window:allow-set-focus",
     "process:allow-exit",
+    "process:allow-restart",
+    "updater:default",
     {
       "identifier": "fs:allow-exists",
       "allow": [

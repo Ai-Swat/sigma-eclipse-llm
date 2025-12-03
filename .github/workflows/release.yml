@@ -183,11 +183,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download all updater artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-          pattern: updater-*
+      - name: Wait for release assets to be available
+        run: sleep 30
 
       - name: Get version from tag
         id: get_version
@@ -196,53 +193,86 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
 
-      - name: Debug - List artifacts
-        run: |
-          echo "=== All artifacts ==="
-          find artifacts -type f 2>/dev/null || echo "No artifacts found"
-
-      - name: Generate latest.json
+      - name: Generate latest.json from GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ steps.get_version.outputs.version }}"
           TAG="${{ github.ref_name }}"
           REPO="${{ github.repository }}"
           
-          echo "=== Looking for signature files ==="
+          echo "=== Fetching release assets from GitHub API ==="
           
-          # Find macOS signature (.app.tar.gz.sig)
-          MACOS_SIG_FILE=$(find artifacts -name "*.app.tar.gz.sig" 2>/dev/null | head -1)
-          MACOS_SIG=""
+          # Get release assets using GitHub CLI
+          ASSETS=$(gh api repos/$REPO/releases/tags/$TAG --jq '.assets[] | "\(.name)|\(.browser_download_url)"' 2>/dev/null || echo "")
+          
+          if [ -z "$ASSETS" ]; then
+            echo "No assets found, trying draft releases..."
+            RELEASE_ID=$(gh api repos/$REPO/releases --jq '.[] | select(.tag_name == "'"$TAG"'") | .id' | head -1)
+            if [ -n "$RELEASE_ID" ]; then
+              ASSETS=$(gh api repos/$REPO/releases/$RELEASE_ID --jq '.assets[] | "\(.name)|\(.browser_download_url)"' 2>/dev/null || echo "")
+            fi
+          fi
+          
+          echo "Found assets:"
+          echo "$ASSETS"
+          
+          # Find macOS .app.tar.gz and its signature
           MACOS_FILE=""
-          if [ -n "$MACOS_SIG_FILE" ] && [ -f "$MACOS_SIG_FILE" ]; then
-            MACOS_SIG=$(cat "$MACOS_SIG_FILE")
-            # Get the corresponding tar.gz file (remove .sig extension)
-            MACOS_TAR="${MACOS_SIG_FILE%.sig}"
-            if [ -f "$MACOS_TAR" ]; then
-              MACOS_FILE=$(basename "$MACOS_TAR")
-            fi
-            echo "Found macOS: $MACOS_FILE"
-          fi
+          MACOS_URL=""
+          MACOS_SIG=""
           
-          # Find Windows signature (.exe.sig or .nsis.zip.sig)
-          WINDOWS_SIG_FILE=$(find artifacts -name "*.exe.sig" -o -name "*.nsis.zip.sig" 2>/dev/null | head -1)
-          WINDOWS_SIG=""
-          WINDOWS_FILE=""
-          if [ -n "$WINDOWS_SIG_FILE" ] && [ -f "$WINDOWS_SIG_FILE" ]; then
-            WINDOWS_SIG=$(cat "$WINDOWS_SIG_FILE")
-            # Get the corresponding exe/zip file (remove .sig extension)
-            WINDOWS_BUNDLE="${WINDOWS_SIG_FILE%.sig}"
-            if [ -f "$WINDOWS_BUNDLE" ]; then
-              WINDOWS_FILE=$(basename "$WINDOWS_BUNDLE")
+          # Find the .app.tar.gz file (not .sig)
+          while IFS='|' read -r name url; do
+            if [[ "$name" == *.app.tar.gz ]] && [[ "$name" != *.sig ]]; then
+              MACOS_FILE="$name"
+              MACOS_URL="$url"
+              echo "Found macOS bundle: $name"
             fi
-            echo "Found Windows: $WINDOWS_FILE"
-          fi
+          done <<< "$ASSETS"
+          
+          # Find corresponding signature
+          while IFS='|' read -r name url; do
+            if [[ "$name" == "${MACOS_FILE}.sig" ]]; then
+              # Download and read signature content
+              MACOS_SIG=$(curl -sL "$url")
+              echo "Found macOS signature"
+            fi
+          done <<< "$ASSETS"
+          
+          # Find Windows setup.exe and its signature
+          WINDOWS_FILE=""
+          WINDOWS_URL=""
+          WINDOWS_SIG=""
+          
+          while IFS='|' read -r name url; do
+            if [[ "$name" == *-setup.exe ]] && [[ "$name" != *.sig ]]; then
+              WINDOWS_FILE="$name"
+              WINDOWS_URL="$url"
+              echo "Found Windows installer: $name"
+            fi
+          done <<< "$ASSETS"
+          
+          # Find corresponding signature
+          while IFS='|' read -r name url; do
+            if [[ "$name" == "${WINDOWS_FILE}.sig" ]]; then
+              WINDOWS_SIG=$(curl -sL "$url")
+              echo "Found Windows signature"
+            fi
+          done <<< "$ASSETS"
+          
+          # URL encode the filenames (replace spaces with %20)
+          MACOS_FILE_ENCODED=$(echo "$MACOS_FILE" | sed 's/ /%20/g')
+          WINDOWS_FILE_ENCODED=$(echo "$WINDOWS_FILE" | sed 's/ /%20/g')
           
           # Generate JSON
-          echo "{" > latest.json
-          echo "  \"version\": \"$VERSION\"," >> latest.json
-          echo "  \"notes\": \"See changelog at https://github.com/$REPO/blob/main/CHANGELOG.md\"," >> latest.json
-          echo "  \"pub_date\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"," >> latest.json
-          echo "  \"platforms\": {" >> latest.json
+          cat > latest.json << EOF
+          {
+            "version": "$VERSION",
+            "notes": "See changelog at https://github.com/$REPO/blob/main/CHANGELOG.md",
+            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "platforms": {
+          EOF
           
           FIRST=true
           
@@ -250,34 +280,61 @@ jobs:
           if [ -n "$MACOS_SIG" ] && [ -n "$MACOS_FILE" ]; then
             if [ "$FIRST" = false ]; then echo "    ," >> latest.json; fi
             FIRST=false
-            echo "    \"darwin-aarch64\": {" >> latest.json
-            echo "      \"signature\": \"$MACOS_SIG\"," >> latest.json
-            echo "      \"url\": \"https://github.com/$REPO/releases/download/$TAG/$MACOS_FILE\"" >> latest.json
-            echo "    }" >> latest.json
+            cat >> latest.json << EOF
+              "darwin-aarch64": {
+                "signature": "$MACOS_SIG",
+                "url": "https://github.com/$REPO/releases/download/$TAG/$MACOS_FILE_ENCODED"
+              }
+          EOF
           fi
           
           # Add Windows if available
           if [ -n "$WINDOWS_SIG" ] && [ -n "$WINDOWS_FILE" ]; then
-            if [ "$FIRST" = false ]; then echo "    ," >> latest.json; fi
-            FIRST=false
-            echo "    \"windows-x86_64\": {" >> latest.json
-            echo "      \"signature\": \"$WINDOWS_SIG\"," >> latest.json
-            echo "      \"url\": \"https://github.com/$REPO/releases/download/$TAG/$WINDOWS_FILE\"" >> latest.json
-            echo "    }" >> latest.json
+            if [ "$FIRST" = false ]; then
+              # Insert comma before windows entry
+              sed -i '$ s/}$/},/' latest.json
+            fi
+            cat >> latest.json << EOF
+              "windows-x86_64": {
+                "signature": "$WINDOWS_SIG",
+                "url": "https://github.com/$REPO/releases/download/$TAG/$WINDOWS_FILE_ENCODED"
+              }
+          EOF
           fi
           
-          echo "  }" >> latest.json
-          echo "}" >> latest.json
+          cat >> latest.json << EOF
+            }
+          }
+          EOF
+          
+          # Clean up any extra whitespace
+          cat latest.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(json.dumps(d, indent=2))" > latest_clean.json
+          mv latest_clean.json latest.json
           
           echo "=== Generated latest.json ==="
           cat latest.json
 
       - name: Upload latest.json to release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ github.ref_name }}
-          files: latest.json
-          draft: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          REPO="${{ github.repository }}"
+          
+          # Delete existing latest.json if present
+          ASSET_ID=$(gh api repos/$REPO/releases/tags/$TAG --jq '.assets[] | select(.name == "latest.json") | .id' 2>/dev/null || echo "")
+          if [ -z "$ASSET_ID" ]; then
+            RELEASE_ID=$(gh api repos/$REPO/releases --jq '.[] | select(.tag_name == "'"$TAG"'") | .id' | head -1)
+            if [ -n "$RELEASE_ID" ]; then
+              ASSET_ID=$(gh api repos/$REPO/releases/$RELEASE_ID --jq '.assets[] | select(.name == "latest.json") | .id' 2>/dev/null || echo "")
+            fi
+          fi
+          
+          if [ -n "$ASSET_ID" ]; then
+            echo "Deleting existing latest.json (asset id: $ASSET_ID)"
+            gh api -X DELETE repos/$REPO/releases/assets/$ASSET_ID || true
+          fi
+          
+          # Upload new latest.json
+          gh release upload "$TAG" latest.json --clobber || gh release upload "$TAG" latest.json
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { check, Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -20,17 +20,31 @@ export function useUpdater() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null);
   const [isInstalling, setIsInstalling] = useState(false);
-  const [update, setUpdate] = useState<Update | null>(null);
+  const updateRef = useRef<Update | null>(null);
 
-  // Listen for update-available event from Rust backend
+  // Listen for update-available event from Rust backend and fetch Update object
   useEffect(() => {
-    const unlisten = listen<UpdateInfo>("update-available", (event) => {
+    const unlisten = listen<UpdateInfo>("update-available", async (event) => {
+      console.log("[Updater] Received update-available event:", event.payload);
       setUpdateInfo({
         currentVersion: event.payload.currentVersion,
         newVersion: event.payload.newVersion,
         body: event.payload.body,
       });
       setUpdateAvailable(true);
+      
+      // Fetch the actual Update object for download capability
+      try {
+        console.log("[Updater] Fetching Update object via check()...");
+        const result = await check();
+        console.log("[Updater] check() result:", result);
+        if (result) {
+          updateRef.current = result;
+          console.log("[Updater] Update object stored in ref");
+        }
+      } catch (error) {
+        console.error("[Updater] Failed to fetch update object:", error);
+      }
     });
 
     return () => {
@@ -41,9 +55,11 @@ export function useUpdater() {
   // Manual check for updates
   const checkForUpdates = useCallback(async () => {
     try {
+      console.log("[Updater] Manual check for updates...");
       const result = await check();
+      console.log("[Updater] Manual check result:", result);
       if (result) {
-        setUpdate(result);
+        updateRef.current = result;
         setUpdateInfo({
           currentVersion: result.currentVersion,
           newVersion: result.version,
@@ -54,24 +70,38 @@ export function useUpdater() {
       }
       return false;
     } catch (error) {
-      console.error("Failed to check for updates:", error);
+      console.error("[Updater] Failed to check for updates:", error);
       return false;
     }
   }, []);
 
   // Download and install update
   const downloadAndInstall = useCallback(async () => {
-    if (!update) {
-      // If no update object, try to check again
-      const result = await check();
-      if (!result) return;
-      setUpdate(result);
+    console.log("[Updater] downloadAndInstall called");
+    console.log("[Updater] updateRef.current:", updateRef.current);
+    
+    let currentUpdate = updateRef.current;
+    
+    // If no update object, try to check again
+    if (!currentUpdate) {
+      console.log("[Updater] No update object, fetching via check()...");
+      try {
+        const result = await check();
+        console.log("[Updater] check() result:", result);
+        if (!result) {
+          console.error("[Updater] No update available from check()");
+          return;
+        }
+        currentUpdate = result;
+        updateRef.current = result;
+      } catch (error) {
+        console.error("[Updater] Failed to check for updates:", error);
+        return;
+      }
     }
 
-    const currentUpdate = update || (await check());
-    if (!currentUpdate) return;
-
     try {
+      console.log("[Updater] Starting download and install...");
       setIsDownloading(true);
       setDownloadProgress({ downloaded: 0, total: null });
 
@@ -79,6 +109,7 @@ export function useUpdater() {
       let contentLength: number | null = null;
 
       await currentUpdate.downloadAndInstall((event) => {
+        console.log("[Updater] Download event:", event);
         switch (event.event) {
           case "Started":
             contentLength = event.data.contentLength ?? null;
@@ -95,14 +126,15 @@ export function useUpdater() {
         }
       });
 
+      console.log("[Updater] Download complete, relaunching...");
       // Relaunch the app after installation
       await relaunch();
     } catch (error) {
-      console.error("Failed to download/install update:", error);
+      console.error("[Updater] Failed to download/install update:", error);
       setIsDownloading(false);
       setIsInstalling(false);
     }
-  }, [update]);
+  }, []);
 
   // Dismiss update notification
   const dismissUpdate = useCallback(() => {
@@ -120,4 +152,3 @@ export function useUpdater() {
     dismissUpdate,
   };
 }
-

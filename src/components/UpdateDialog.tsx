@@ -8,7 +8,6 @@ interface DownloadProgress {
 interface UpdateDialogProps {
   currentVersion: string;
   newVersion: string;
-  releaseNotes?: string;
   isDownloading: boolean;
   downloadProgress: DownloadProgress | null;
   isInstalling: boolean;
@@ -17,9 +16,7 @@ interface UpdateDialogProps {
 }
 
 export function UpdateDialog({
-  currentVersion,
   newVersion,
-  releaseNotes,
   isDownloading,
   downloadProgress,
   isInstalling,
@@ -37,72 +34,51 @@ export function UpdateDialog({
   };
 
   return (
-    <div className="update-dialog-overlay">
-      <div className="update-dialog">
-        <div className="update-dialog-header">
-          <div className="update-icon">🚀</div>
-          <h2>Доступно обновление!</h2>
-        </div>
-
-        <div className="update-dialog-content">
-          <div className="version-info">
-            <span className="version-current">{currentVersion}</span>
-            <span className="version-arrow">→</span>
-            <span className="version-new">{newVersion}</span>
-          </div>
-
-          {releaseNotes && (
-            <div className="release-notes">
-              <h4>Что нового:</h4>
-              <p>{releaseNotes}</p>
-            </div>
-          )}
-
-          {isDownloading && downloadProgress && (
-            <div className="download-progress">
-              <div className="update-progress-bar">
-                <div
-                  className="update-progress-fill"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-              <div className="download-info">
-                {downloadProgress.total ? (
-                  <span>
-                    {formatBytes(downloadProgress.downloaded)} / {formatBytes(downloadProgress.total)} ({progressPercent}%)
-                  </span>
-                ) : (
-                  <span>{formatBytes(downloadProgress.downloaded)}</span>
-                )}
-              </div>
-            </div>
-          )}
-
-          {isInstalling && (
-            <div className="installing-status">
-              <span className="spinner"></span>
-              <span>Установка обновления...</span>
-            </div>
-          )}
-        </div>
-
-        <div className="update-dialog-actions">
-          {!isDownloading && !isInstalling && (
-            <>
-              <button className="update-button-secondary" onClick={onDismiss}>
-                Позже
-              </button>
-              <button className="update-button-primary" onClick={onUpdate}>
-                Обновить сейчас
-              </button>
-            </>
-          )}
-          {isDownloading && (
-            <span className="download-status">Загрузка обновления...</span>
-          )}
+    <div className="update-toast">
+      <div className="update-toast-content">
+        <div className="update-toast-icon">🚀</div>
+        <div className="update-toast-text">
+          <span className="update-toast-title">New version available</span>
         </div>
       </div>
+
+      {isDownloading && downloadProgress && (
+        <div className="update-toast-progress">
+          <div className="update-progress-bar">
+            <div
+              className="update-progress-fill"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+          <div className="update-progress-info">
+            {downloadProgress.total ? (
+              <span>
+                {formatBytes(downloadProgress.downloaded)} / {formatBytes(downloadProgress.total)}
+              </span>
+            ) : (
+              <span>{formatBytes(downloadProgress.downloaded)}</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {isInstalling && (
+        <div className="update-toast-installing">
+          <span className="spinner"></span>
+          <span>Installing...</span>
+        </div>
+      )}
+
+      {!isDownloading && !isInstalling && (
+        <div className="update-toast-actions">
+          <button className="update-btn-dismiss" onClick={onDismiss}>
+            Dismiss
+          </button>
+          <button className="update-btn-update" onClick={onUpdate}>
+            Update
+          </button>
+        </div>
+      )}
     </div>
   );
 }
-
