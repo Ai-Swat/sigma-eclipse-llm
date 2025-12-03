@@ -109,8 +109,6 @@ function App() {
 
       {updateAvailable && updateInfo && (
         <UpdateDialog
-          currentVersion={updateInfo.currentVersion}
-          newVersion={updateInfo.newVersion}
           isDownloading={isDownloadingUpdate}
           downloadProgress={updateDownloadProgress}
           isInstalling={isInstalling}

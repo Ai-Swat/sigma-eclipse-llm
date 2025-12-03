@@ -47,12 +47,6 @@
   color: var(--text-neutral-primary);
 }
 
-.update-toast-version {
-  font-size: 12px;
-  color: var(--text-colored-brand);
-  font-family: monospace;
-}
-
 .update-toast-progress {
   margin-bottom: 8px;
 }

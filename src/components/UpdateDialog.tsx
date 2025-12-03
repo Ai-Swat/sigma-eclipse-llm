@@ -6,8 +6,6 @@ interface DownloadProgress {
 }
 
 interface UpdateDialogProps {
-  currentVersion: string;
-  newVersion: string;
   isDownloading: boolean;
   downloadProgress: DownloadProgress | null;
   isInstalling: boolean;
@@ -16,7 +14,6 @@ interface UpdateDialogProps {
 }
 
 export function UpdateDialog({
-  newVersion,
   isDownloading,
   downloadProgress,
   isInstalling,
