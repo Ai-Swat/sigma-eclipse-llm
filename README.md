@@ -17,11 +17,20 @@
 
 </div>
 
-## 🚀 What is Sigma Eclipse?
+## 🌐 Part of Sigma Eclipse Ecosystem
 
-Sigma Eclipse is a lightweight desktop application that lets you run large language models (LLMs) locally on your machine. No API keys, no subscriptions, no data leaving your computer — just pure, private AI at your fingertips.
+This application is a core component of the **Sigma Eclipse** project — a privacy-focused AI ecosystem. It works seamlessly with:
 
-Built with [Tauri](https://tauri.app/) and powered by [llama.cpp](https://github.com/ggerganov/llama.cpp), Sigma Eclipse combines native performance with a beautiful, intuitive interface.
+- **[Sigma Browser](https://www.sigmabrowser.com/)** — A privacy-first browser with built-in AI capabilities
+- **[Sigma Eclipse Extension](https://github.com/Ai-Swat/sigma-eclipse-extension)** — Browser extension that connects to this local LLM server
+
+Together, these components provide a complete solution for running AI locally while browsing the web, ensuring your data stays on your machine.
+
+## 🚀 What is Sigma Eclipse LLM?
+
+Sigma Eclipse LLM is a lightweight desktop application that lets you run large language models (LLMs) locally on your machine. No API keys, no subscriptions, no data leaving your computer — just pure, private AI at your fingertips.
+
+Built with [Tauri](https://tauri.app/) and powered by [llama.cpp](https://github.com/ggerganov/llama.cpp), Sigma Eclipse LLM combines native performance with a beautiful, intuitive interface.
 
 
 ## ✨ Features
