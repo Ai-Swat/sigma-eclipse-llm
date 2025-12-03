@@ -19,11 +19,13 @@ jobs:
             target: aarch64-apple-darwin
             rust_target: aarch64-apple-darwin
             bundle_arg: dmg
+            updater_target: darwin-aarch64
           # Windows build
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             rust_target: x86_64-pc-windows-msvc
             bundle_arg: nsis
+            updater_target: windows-x86_64
 
     runs-on: ${{ matrix.platform }}
 
@@ -105,38 +107,22 @@ jobs:
           rm certificate.p12
 
       # =====================================
-      # Windows Code Signing
-      # =====================================
-      # Commented out: Using TAURI_SIGNING_PRIVATE_KEY approach instead
-      # - name: Setup Windows Code Signing (Windows)
-      #   if: matrix.platform == 'windows-latest'
-      #   env:
-      #     WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
-      #     WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-      #   run: |
-      #     # Decode certificate
-      #     echo "$env:WINDOWS_CERTIFICATE" | Out-File -FilePath certificate.txt -Encoding ascii
-      #     certutil -decode certificate.txt certificate.pfx
-      #     
-      #     # Import to certificate store
-      #     $password = ConvertTo-SecureString -String "$env:WINDOWS_CERTIFICATE_PASSWORD" -Force -AsPlainText
-      #     Import-PfxCertificate -FilePath certificate.pfx -CertStoreLocation Cert:\CurrentUser\My -Password $password
-      #     
-      #     # Clean up
-      #     Remove-Item certificate.txt, certificate.pfx
-
-      # =====================================
-      # Build with Tauri Action
+      # Build with Tauri Action (with Updater signing)
       # =====================================
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Chrome extension ID for native messaging
+          EXTENSION_ID: ${{ secrets.EXTENSION_ID }}
           # macOS notarization
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          # Updater signing key
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Sigma Eclipse v__VERSION__'
@@ -152,9 +138,26 @@ jobs:
             
             ### Windows
             - Download the `.exe` installer
+            
+            ---
+            _This release supports automatic updates._
           releaseDraft: true
           prerelease: false
           args: ${{ format('--target {0} --bundles {1} --verbose', matrix.rust_target, matrix.bundle_arg) }}
+
+      # =====================================
+      # Upload updater artifacts
+      # =====================================
+      - name: Upload updater signature artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: updater-${{ matrix.updater_target }}
+          path: |
+            src-tauri/target/${{ matrix.rust_target }}/release/bundle/**/*.sig
+            src-tauri/target/${{ matrix.rust_target }}/release/bundle/**/*.tar.gz
+            src-tauri/target/${{ matrix.rust_target }}/release/bundle/**/*.zip
+          retention-days: 30
+          if-no-files-found: ignore
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -165,4 +168,106 @@ jobs:
             !**/*/.DS_Store
           retention-days: 30
           if-no-files-found: ignore
+
+  # =====================================
+  # Generate latest.json for updater
+  # =====================================
+  generate-updater-json:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all updater artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: updater-*
+
+      - name: Get version from tag
+        id: get_version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Generate latest.json
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          TAG="${{ github.ref_name }}"
+          REPO="${{ github.repository }}"
+          
+          # Find signature files
+          MACOS_SIG=""
+          WINDOWS_SIG=""
+          
+          # macOS signature
+          if [ -f "artifacts/updater-darwin-aarch64/"*".sig" ]; then
+            MACOS_SIG=$(cat artifacts/updater-darwin-aarch64/*.sig 2>/dev/null | head -1)
+          fi
+          
+          # Windows signature  
+          if [ -f "artifacts/updater-windows-x86_64/"*".sig" ]; then
+            WINDOWS_SIG=$(cat artifacts/updater-windows-x86_64/*.sig 2>/dev/null | head -1)
+          fi
+          
+          # Find the actual updater bundle filenames
+          MACOS_FILE=$(ls artifacts/updater-darwin-aarch64/*.tar.gz 2>/dev/null | head -1 | xargs basename 2>/dev/null || echo "")
+          WINDOWS_FILE=$(ls artifacts/updater-windows-x86_64/*.zip 2>/dev/null | head -1 | xargs basename 2>/dev/null || echo "")
+          
+          # Generate JSON
+          cat > latest.json << EOF
+          {
+            "version": "$VERSION",
+            "notes": "See changelog at https://github.com/$REPO/blob/main/CHANGELOG.md",
+            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "platforms": {
+          EOF
+          
+          FIRST=true
+          
+          # Add macOS if available
+          if [ -n "$MACOS_SIG" ] && [ -n "$MACOS_FILE" ]; then
+            if [ "$FIRST" = false ]; then echo "," >> latest.json; fi
+            FIRST=false
+            cat >> latest.json << EOF
+              "darwin-aarch64": {
+                "signature": "$MACOS_SIG",
+                "url": "https://github.com/$REPO/releases/download/$TAG/$MACOS_FILE"
+              }
+          EOF
+          fi
+          
+          # Add Windows if available
+          if [ -n "$WINDOWS_SIG" ] && [ -n "$WINDOWS_FILE" ]; then
+            if [ "$FIRST" = false ]; then echo "    ," >> latest.json; fi
+            FIRST=false
+            cat >> latest.json << EOF
+              "windows-x86_64": {
+                "signature": "$WINDOWS_SIG",
+                "url": "https://github.com/$REPO/releases/download/$TAG/$WINDOWS_FILE"
+              }
+          EOF
+          fi
+          
+          cat >> latest.json << EOF
+            }
+          }
+          EOF
+          
+          echo "Generated latest.json:"
+          cat latest.json
+
+      - name: Upload latest.json to release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: latest.json
+          draft: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

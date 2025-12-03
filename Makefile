@@ -1,7 +1,7 @@
 # Sigma Eclipse LLM - Build Makefile
 # Build commands
 
-.PHONY: all dev build build-host build-all build-windows clean install-deps help version bump-patch bump-minor bump-major publish
+.PHONY: all dev build build-signed build-host build-all build-windows clean install-deps help version bump-patch bump-minor bump-major publish check-signing-key
 
 # Detect OS and architecture
 UNAME_S := $(shell uname -s)
@@ -22,6 +22,9 @@ TAURI_DIR := src-tauri
 BINARIES_DIR := $(TAURI_DIR)/binaries
 HOST_BINARY := sigma-eclipse-host
 HOST_BINARY_PATH := $(BINARIES_DIR)/$(HOST_BINARY)-$(TARGET)$(BINARY_EXT)
+
+# Updater signing key path
+SIGNING_KEY_PATH := ~/.tauri/sigma-eclipse-llm.key
 
 # Default target
 all: build
@@ -58,12 +61,36 @@ ensure-host-binary: ensure-binaries-dir
 		$(MAKE) build-host; \
 	fi
 
-# Build production release
+# Build production release (without signing)
 build: ensure-host-binary
 	@echo "🏗️  Building production release..."
 	npm run tauri build
 	@echo "✅ Build complete!"
 	@echo "📦 Bundles available at: $(TAURI_DIR)/target/release/bundle/"
+
+# Build production release with updater signing
+# Set TAURI_SIGNING_PRIVATE_KEY_PASSWORD env var if your key has a password
+build-signed: ensure-host-binary check-signing-key
+	@echo "🏗️  Building signed production release..."
+	@echo "🔐 Using signing key: $(SIGNING_KEY_PATH)"
+	@if [ -n "$$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" ]; then \
+		echo "🔑 Using password from TAURI_SIGNING_PRIVATE_KEY_PASSWORD env"; \
+	else \
+		echo "🔓 No password set (TAURI_SIGNING_PRIVATE_KEY_PASSWORD is empty)"; \
+	fi
+	TAURI_SIGNING_PRIVATE_KEY="$$(cat $$(eval echo $(SIGNING_KEY_PATH)))" \
+	npm run tauri build
+	@echo "✅ Signed build complete!"
+	@echo "📦 Bundles available at: $(TAURI_DIR)/target/release/bundle/"
+
+# Check if signing key exists
+check-signing-key:
+	@if [ ! -f "$$(eval echo $(SIGNING_KEY_PATH))" ]; then \
+		echo "❌ Error: Signing key not found at $(SIGNING_KEY_PATH)"; \
+		echo "   Generate one with: npx tauri signer generate -w $(SIGNING_KEY_PATH)"; \
+		exit 1; \
+	fi
+	@echo "✅ Signing key found"
 
 # Build everything (host + app)
 build-all: build-host build
@@ -156,7 +183,8 @@ help:
 	@echo "Targets:"
 	@echo "  all           - Build production release (default)"
 	@echo "  dev           - Start development server"
-	@echo "  build         - Build production release"
+	@echo "  build         - Build production release (unsigned)"
+	@echo "  build-signed  - Build production release with updater signing"
 	@echo "  build-host    - Build native messaging host binary"
 	@echo "  build-all     - Build host and app"
 	@echo "  build-macos   - Build macOS ARM64 binary"
@@ -176,4 +204,5 @@ help:
 	@echo ""
 	@echo "Current target: $(TARGET)"
 	@echo "Host binary: $(HOST_BINARY_PATH)"
+	@echo "Signing key: $(SIGNING_KEY_PATH)"
 

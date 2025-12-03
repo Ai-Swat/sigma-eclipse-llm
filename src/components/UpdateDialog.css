@@ -1,0 +1,223 @@
+.update-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.update-dialog {
+  background: var(--background-neutral-global-secondary);
+  border-radius: var(--custom-border-radius);
+  padding: 24px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.update-dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.update-icon {
+  font-size: 32px;
+}
+
+.update-dialog-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-neutral-primary);
+}
+
+.update-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.version-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  background: var(--background-brand-primary-subdued);
+  border-radius: 12px;
+}
+
+.version-current {
+  font-size: 16px;
+  color: var(--text-neutral-tertiary);
+  font-family: monospace;
+}
+
+.version-arrow {
+  font-size: 18px;
+  color: var(--text-neutral-secondary);
+}
+
+.version-new {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-colored-brand);
+  font-family: monospace;
+}
+
+.release-notes {
+  padding: 12px;
+  background: var(--background-neutral-global-tertiary);
+  border-radius: 8px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.release-notes h4 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-neutral-secondary);
+}
+
+.release-notes p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-neutral-primary);
+  white-space: pre-wrap;
+}
+
+.download-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.update-progress-bar {
+  height: 8px;
+  background: var(--background-neutral-global-tertiary);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.update-progress-fill {
+  height: 100%;
+  background: var(--background-brand-primary);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.download-info {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-neutral-secondary);
+  font-family: monospace;
+}
+
+.installing-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  color: var(--text-neutral-primary);
+  font-size: 15px;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--stroke-neutral-alfa-secondary);
+  border-top-color: var(--text-colored-brand);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.update-dialog-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+  justify-content: flex-end;
+}
+
+.update-button-secondary {
+  padding: 12px 20px;
+  font-size: 15px;
+  font-weight: 500;
+  border: 1px solid var(--stroke-neutral-alfa-secondary);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-neutral-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: var(--font-primary);
+}
+
+.update-button-secondary:hover {
+  background: var(--background-neutral-global-tertiary);
+}
+
+.update-button-primary {
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  background: var(--background-brand-primary);
+  color: var(--text-neutral-primary-on-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: var(--font-primary);
+}
+
+.update-button-primary:hover {
+  background: var(--background-brand-primary-hover);
+}
+
+.update-button-primary:active {
+  background: var(--background-brand-primary-active);
+}
+
+.download-status {
+  font-size: 14px;
+  color: var(--text-neutral-secondary);
+  padding: 12px;
+}
+

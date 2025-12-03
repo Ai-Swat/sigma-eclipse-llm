@@ -1,7 +1,10 @@
 use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
+
+#[cfg(any(target_os = "macos", windows, target_os = "linux"))]
+use tauri_plugin_updater::UpdaterExt;
 
 // Module declarations
 mod download;
@@ -30,6 +33,41 @@ use system::{
     get_recommended_settings, get_system_memory_gb,
 };
 use types::ServerState;
+
+/// Check for application updates on startup
+#[cfg(any(target_os = "macos", windows, target_os = "linux"))]
+async fn check_for_updates(app: tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    log::info!("Checking for updates...");
+    
+    let updater = app.updater_builder().build()?;
+    
+    match updater.check().await {
+        Ok(Some(update)) => {
+            log::info!(
+                "Update available: {} -> {}",
+                update.current_version,
+                update.version
+            );
+            
+            // Emit event to frontend about available update
+            if let Err(e) = app.emit("update-available", serde_json::json!({
+                "current_version": update.current_version,
+                "new_version": update.version,
+                "body": update.body
+            })) {
+                log::error!("Failed to emit update-available event: {}", e);
+            }
+        }
+        Ok(None) => {
+            log::info!("No updates available, running latest version");
+        }
+        Err(e) => {
+            log::error!("Failed to check for updates: {}", e);
+        }
+    }
+    
+    Ok(())
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -104,7 +142,11 @@ pub fn run() {
                 });
             }
         })
-        .setup(|_app| {
+        .setup(|app| {
+            // Initialize updater plugin (desktop only)
+            #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
+            app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
+            
             // Install native messaging manifests on startup (macOS and Windows)
             #[cfg(any(target_os = "macos", target_os = "windows"))]
             {
@@ -124,6 +166,17 @@ pub fn run() {
                     thread::sleep(Duration::from_secs(3));
                 }
             });
+            
+            // Check for updates on startup (desktop only)
+            #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
+            {
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = check_for_updates(handle).await {
+                        log::error!("Failed to check for updates: {}", e);
+                    }
+                });
+            }
             
             Ok(())
         })

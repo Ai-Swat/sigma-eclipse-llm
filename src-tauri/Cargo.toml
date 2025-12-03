@@ -1,6 +1,6 @@
 [package]
 name = "sigma-eclipse"
-version = "0.1.10"
+version = "0.1.11"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -41,7 +41,11 @@ futures-util = "0.3"
 tauri-plugin-fs = "2"
 sysinfo = "0.30"
 tauri-plugin-process = "2"
+
 sha2 = "0.10"
+
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
+tauri-plugin-updater = "2"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

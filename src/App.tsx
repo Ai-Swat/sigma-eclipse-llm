@@ -5,8 +5,9 @@ import {
   StatusPanel,
   LogsSection,
   ThemeSwitcher,
+  UpdateDialog,
 } from "./components";
-import { useApp } from "./hooks";
+import { useApp, useUpdater } from "./hooks";
 import "./App.css";
 
 function App() {
@@ -53,6 +54,16 @@ function App() {
     handleUncensoredChange,
   } = useApp();
 
+  const {
+    updateAvailable,
+    updateInfo,
+    isDownloading: isDownloadingUpdate,
+    downloadProgress: updateDownloadProgress,
+    isInstalling,
+    downloadAndInstall,
+    dismissUpdate,
+  } = useUpdater();
+
   return (
     <main className="container">
       <HeaderSection onToggleSettings={() => setIsSettingsOpen(!isSettingsOpen)} />
@@ -95,6 +106,19 @@ function App() {
       </div>
 
       <Toaster position="bottom-right" expand={true} richColors closeButton dir="ltr" />
+
+      {updateAvailable && updateInfo && (
+        <UpdateDialog
+          currentVersion={updateInfo.currentVersion}
+          newVersion={updateInfo.newVersion}
+          releaseNotes={updateInfo.body}
+          isDownloading={isDownloadingUpdate}
+          downloadProgress={updateDownloadProgress}
+          isInstalling={isInstalling}
+          onUpdate={downloadAndInstall}
+          onDismiss={dismissUpdate}
+        />
+      )}
     </main>
   );
 }

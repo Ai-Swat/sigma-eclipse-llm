@@ -7,3 +7,4 @@ export { useSettings } from "./useSettings";
 export { useServerControl } from "./useServerControl";
 export { useModelDownload } from "./useModelDownload";
 export { useApp } from "./useApp";
+export { useUpdater } from "./useUpdater";
