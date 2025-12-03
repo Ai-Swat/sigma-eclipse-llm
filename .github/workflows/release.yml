@@ -219,6 +219,8 @@ jobs:
             MACOS_TAR="${MACOS_SIG_FILE%.sig}"
             if [ -f "$MACOS_TAR" ]; then
               MACOS_FILE=$(basename "$MACOS_TAR")
+              # Replace spaces with dots (GitHub converts spaces to dots in release URLs)
+              MACOS_FILE="${MACOS_FILE// /.}"
             fi
             echo "Found macOS: $MACOS_FILE"
           fi
@@ -233,6 +235,8 @@ jobs:
             WINDOWS_BUNDLE="${WINDOWS_SIG_FILE%.sig}"
             if [ -f "$WINDOWS_BUNDLE" ]; then
               WINDOWS_FILE=$(basename "$WINDOWS_BUNDLE")
+              # Replace spaces with dots (GitHub converts spaces to dots in release URLs)
+              WINDOWS_FILE="${WINDOWS_FILE// /.}"
             fi
             echo "Found Windows: $WINDOWS_FILE"
           fi
