@@ -18,7 +18,7 @@ jobs:
           - platform: macos-latest
             target: aarch64-apple-darwin
             rust_target: aarch64-apple-darwin
-            bundle_arg: dmg
+            bundle_arg: app,dmg
             updater_target: darwin-aarch64
           # Windows build
           - platform: windows-latest
@@ -156,6 +156,7 @@ jobs:
             src-tauri/target/${{ matrix.rust_target }}/release/bundle/**/*.sig
             src-tauri/target/${{ matrix.rust_target }}/release/bundle/**/*.tar.gz
             src-tauri/target/${{ matrix.rust_target }}/release/bundle/**/*.zip
+            src-tauri/target/${{ matrix.rust_target }}/release/bundle/**/*-setup.exe
           retention-days: 30
           if-no-files-found: ignore
 
@@ -195,71 +196,80 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
 
+      - name: Debug - List artifacts
+        run: |
+          echo "=== All artifacts ==="
+          find artifacts -type f 2>/dev/null || echo "No artifacts found"
+
       - name: Generate latest.json
         run: |
           VERSION="${{ steps.get_version.outputs.version }}"
           TAG="${{ github.ref_name }}"
           REPO="${{ github.repository }}"
           
-          # Find signature files
+          echo "=== Looking for signature files ==="
+          
+          # Find macOS signature (.app.tar.gz.sig)
+          MACOS_SIG_FILE=$(find artifacts -name "*.app.tar.gz.sig" 2>/dev/null | head -1)
           MACOS_SIG=""
+          MACOS_FILE=""
+          if [ -n "$MACOS_SIG_FILE" ] && [ -f "$MACOS_SIG_FILE" ]; then
+            MACOS_SIG=$(cat "$MACOS_SIG_FILE")
+            # Get the corresponding tar.gz file (remove .sig extension)
+            MACOS_TAR="${MACOS_SIG_FILE%.sig}"
+            if [ -f "$MACOS_TAR" ]; then
+              MACOS_FILE=$(basename "$MACOS_TAR")
+            fi
+            echo "Found macOS: $MACOS_FILE"
+          fi
+          
+          # Find Windows signature (.exe.sig or .nsis.zip.sig)
+          WINDOWS_SIG_FILE=$(find artifacts -name "*.exe.sig" -o -name "*.nsis.zip.sig" 2>/dev/null | head -1)
           WINDOWS_SIG=""
-          
-          # macOS signature
-          if [ -f "artifacts/updater-darwin-aarch64/"*".sig" ]; then
-            MACOS_SIG=$(cat artifacts/updater-darwin-aarch64/*.sig 2>/dev/null | head -1)
+          WINDOWS_FILE=""
+          if [ -n "$WINDOWS_SIG_FILE" ] && [ -f "$WINDOWS_SIG_FILE" ]; then
+            WINDOWS_SIG=$(cat "$WINDOWS_SIG_FILE")
+            # Get the corresponding exe/zip file (remove .sig extension)
+            WINDOWS_BUNDLE="${WINDOWS_SIG_FILE%.sig}"
+            if [ -f "$WINDOWS_BUNDLE" ]; then
+              WINDOWS_FILE=$(basename "$WINDOWS_BUNDLE")
+            fi
+            echo "Found Windows: $WINDOWS_FILE"
           fi
-          
-          # Windows signature  
-          if [ -f "artifacts/updater-windows-x86_64/"*".sig" ]; then
-            WINDOWS_SIG=$(cat artifacts/updater-windows-x86_64/*.sig 2>/dev/null | head -1)
-          fi
-          
-          # Find the actual updater bundle filenames
-          MACOS_FILE=$(ls artifacts/updater-darwin-aarch64/*.tar.gz 2>/dev/null | head -1 | xargs basename 2>/dev/null || echo "")
-          WINDOWS_FILE=$(ls artifacts/updater-windows-x86_64/*.zip 2>/dev/null | head -1 | xargs basename 2>/dev/null || echo "")
           
           # Generate JSON
-          cat > latest.json << EOF
-          {
-            "version": "$VERSION",
-            "notes": "See changelog at https://github.com/$REPO/blob/main/CHANGELOG.md",
-            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-            "platforms": {
-          EOF
+          echo "{" > latest.json
+          echo "  \"version\": \"$VERSION\"," >> latest.json
+          echo "  \"notes\": \"See changelog at https://github.com/$REPO/blob/main/CHANGELOG.md\"," >> latest.json
+          echo "  \"pub_date\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"," >> latest.json
+          echo "  \"platforms\": {" >> latest.json
           
           FIRST=true
           
           # Add macOS if available
           if [ -n "$MACOS_SIG" ] && [ -n "$MACOS_FILE" ]; then
-            if [ "$FIRST" = false ]; then echo "," >> latest.json; fi
+            if [ "$FIRST" = false ]; then echo "    ," >> latest.json; fi
             FIRST=false
-            cat >> latest.json << EOF
-              "darwin-aarch64": {
-                "signature": "$MACOS_SIG",
-                "url": "https://github.com/$REPO/releases/download/$TAG/$MACOS_FILE"
-              }
-          EOF
+            echo "    \"darwin-aarch64\": {" >> latest.json
+            echo "      \"signature\": \"$MACOS_SIG\"," >> latest.json
+            echo "      \"url\": \"https://github.com/$REPO/releases/download/$TAG/$MACOS_FILE\"" >> latest.json
+            echo "    }" >> latest.json
           fi
           
           # Add Windows if available
           if [ -n "$WINDOWS_SIG" ] && [ -n "$WINDOWS_FILE" ]; then
             if [ "$FIRST" = false ]; then echo "    ," >> latest.json; fi
             FIRST=false
-            cat >> latest.json << EOF
-              "windows-x86_64": {
-                "signature": "$WINDOWS_SIG",
-                "url": "https://github.com/$REPO/releases/download/$TAG/$WINDOWS_FILE"
-              }
-          EOF
+            echo "    \"windows-x86_64\": {" >> latest.json
+            echo "      \"signature\": \"$WINDOWS_SIG\"," >> latest.json
+            echo "      \"url\": \"https://github.com/$REPO/releases/download/$TAG/$WINDOWS_FILE\"" >> latest.json
+            echo "    }" >> latest.json
           fi
           
-          cat >> latest.json << EOF
-            }
-          }
-          EOF
+          echo "  }" >> latest.json
+          echo "}" >> latest.json
           
-          echo "Generated latest.json:"
+          echo "=== Generated latest.json ==="
           cat latest.json
 
       - name: Upload latest.json to release

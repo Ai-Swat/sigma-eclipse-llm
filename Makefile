@@ -1,7 +1,7 @@
 # Sigma Eclipse LLM - Build Makefile
 # Build commands
 
-.PHONY: all dev build build-signed build-host build-all build-windows clean install-deps help version bump-patch bump-minor bump-major publish check-signing-key
+.PHONY: all dev build build-signed build-host build-all build-windows build-windows-signed clean install-deps help version bump-patch bump-minor bump-major publish check-signing-key
 
 # Detect OS and architecture
 UNAME_S := $(shell uname -s)
@@ -100,7 +100,7 @@ build-macos: ensure-host-binary
 	@echo "🍎 Building for macOS (ARM64)..."
 	npm run tauri build
 
-# Build for Windows using Docker
+# Build for Windows using Docker (unsigned)
 build-windows:
 	@echo "🪟 Building for Windows using Docker..."
 	@if ! docker info > /dev/null 2>&1; then \
@@ -110,6 +110,24 @@ build-windows:
 	docker-compose build build-windows
 	docker-compose run --rm build-windows
 	@echo "✅ Windows build complete!"
+	@echo "📦 Bundles available at: $(TAURI_DIR)/target/x86_64-pc-windows-gnu/release/bundle/"
+
+# Build for Windows using Docker with updater signing
+build-windows-signed: check-signing-key
+	@echo "🪟 Building signed Windows release using Docker..."
+	@if ! docker info > /dev/null 2>&1; then \
+		echo "❌ Error: Docker is not running. Please start Docker Desktop."; \
+		exit 1; \
+	fi
+	@echo "🔐 Using signing key: $(SIGNING_KEY_PATH)"
+	docker-compose build build-windows
+	TAURI_SIGNING_PRIVATE_KEY="$$(cat $$(eval echo $(SIGNING_KEY_PATH)))" \
+	TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$${TAURI_SIGNING_PRIVATE_KEY_PASSWORD:-}" \
+	docker-compose run --rm \
+		-e TAURI_SIGNING_PRIVATE_KEY \
+		-e TAURI_SIGNING_PRIVATE_KEY_PASSWORD \
+		build-windows
+	@echo "✅ Signed Windows build complete!"
 	@echo "📦 Bundles available at: $(TAURI_DIR)/target/x86_64-pc-windows-gnu/release/bundle/"
 
 # Build host for all platforms (requires cross-compilation setup)
@@ -188,7 +206,8 @@ help:
 	@echo "  build-host    - Build native messaging host binary"
 	@echo "  build-all     - Build host and app"
 	@echo "  build-macos   - Build macOS ARM64 binary"
-	@echo "  build-windows - Build Windows binary using Docker"
+	@echo "  build-windows - Build Windows binary using Docker (unsigned)"
+	@echo "  build-windows-signed - Build signed Windows binary using Docker"
 	@echo "  install-deps  - Install npm dependencies"
 	@echo "  clean         - Clean build artifacts"
 	@echo "  rebuild       - Clean and rebuild everything"
