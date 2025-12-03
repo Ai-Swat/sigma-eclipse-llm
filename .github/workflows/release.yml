@@ -221,6 +221,8 @@ jobs:
               MACOS_FILE=$(basename "$MACOS_TAR")
               # Replace spaces with dots (GitHub converts spaces to dots in release URLs)
               MACOS_FILE="${MACOS_FILE// /.}"
+              # Add architecture suffix (tauri-action adds _aarch64 before .app.tar.gz)
+              MACOS_FILE="${MACOS_FILE/.app.tar.gz/_aarch64.app.tar.gz}"
             fi
             echo "Found macOS: $MACOS_FILE"
           fi
