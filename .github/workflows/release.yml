@@ -113,11 +113,17 @@ jobs:
         if: matrix.platform == 'windows-latest'
         shell: pwsh
         env:
+          SM_API_KEY: ${{ secrets.SM_API_KEY }}
           SM_CLIENT_CERT_FILE_B64: ${{ secrets.SM_CLIENT_CERT_FILE_B64 }}
         run: |
-          # Download and install smctl
+          # Download smtools with authentication
+          $headers = @{
+            "x-api-key" = $env:SM_API_KEY
+          }
           $smctlUrl = "https://one.digicert.com/signingmanager/api-ui/v1/releases/smtools-windows-x64.msi/download"
-          Invoke-WebRequest -Uri $smctlUrl -OutFile smtools.msi
+          Invoke-WebRequest -Uri $smctlUrl -Headers $headers -OutFile smtools.msi
+          
+          # Install smtools
           Start-Process msiexec.exe -ArgumentList "/i", "smtools.msi", "/quiet", "/norestart" -Wait
           
           # Add to PATH
