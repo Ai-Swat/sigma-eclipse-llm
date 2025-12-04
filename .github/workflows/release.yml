@@ -184,6 +184,26 @@ jobs:
           prerelease: false
           args: ${{ format('--target {0} --bundles {1} --verbose', matrix.rust_target, matrix.bundle_arg) }}
 
+      # Add Windows SDK signtool to PATH
+      - name: Setup Windows SDK signtool (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          # Find signtool.exe in Windows SDK
+          $signtoolPath = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "signtool.exe" -ErrorAction SilentlyContinue | 
+            Where-Object { $_.FullName -like "*\x64\*" } | 
+            Sort-Object { [version]($_.FullName -replace '.*\\(\d+\.\d+\.\d+\.\d+)\\.*', '$1') } -Descending | 
+            Select-Object -First 1
+          
+          if ($signtoolPath) {
+            $signtoolDir = $signtoolPath.DirectoryName
+            Write-Host "Found signtool at: $signtoolDir"
+            echo "$signtoolDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          } else {
+            Write-Error "signtool.exe not found in Windows SDK"
+            exit 1
+          }
+
       # Windows: Build WITHOUT uploading (we sign first, then upload)
       - name: Build Tauri app (Windows)
         if: matrix.platform == 'windows-latest'
