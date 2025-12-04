@@ -149,18 +149,17 @@ jobs:
       # =====================================
       # Build with Tauri Action (with Updater signing)
       # =====================================
-      - name: Build Tauri app
+      # macOS: Build and upload to release directly (already signed by Apple)
+      - name: Build Tauri app (macOS)
+        if: matrix.platform == 'macos-latest'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Chrome extension ID for native messaging
           EXTENSION_ID: ${{ secrets.EXTENSION_ID }}
-          # macOS notarization
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          # Updater signing key
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
@@ -183,6 +182,19 @@ jobs:
             _This release supports automatic updates._
           releaseDraft: true
           prerelease: false
+          args: ${{ format('--target {0} --bundles {1} --verbose', matrix.rust_target, matrix.bundle_arg) }}
+
+      # Windows: Build WITHOUT uploading (we sign first, then upload)
+      - name: Build Tauri app (Windows)
+        if: matrix.platform == 'windows-latest'
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXTENSION_ID: ${{ secrets.EXTENSION_ID }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          # NO tagName = NO automatic upload to release
           args: ${{ format('--target {0} --bundles {1} --verbose', matrix.rust_target, matrix.bundle_arg) }}
 
       # =====================================
@@ -213,6 +225,18 @@ jobs:
           } else {
             Write-Host "Bundle path not found: $bundlePath"
           }
+
+      # Upload SIGNED Windows binaries to release
+      - name: Upload signed Windows binaries to release
+        if: matrix.platform == 'windows-latest'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          draft: true
+          files: |
+            src-tauri/target/${{ matrix.rust_target }}/release/bundle/nsis/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # =====================================
       # Upload updater artifacts
