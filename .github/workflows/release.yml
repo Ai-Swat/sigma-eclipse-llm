@@ -145,6 +145,16 @@ jobs:
           SM_HOST: https://clientauth.one.digicert.com
         run: |
           smctl healthcheck
+          
+      - name: Sync certificates to Windows Store (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        env:
+          SM_API_KEY: ${{ secrets.SM_API_KEY }}
+          SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
+          SM_HOST: https://clientauth.one.digicert.com
+        run: |
+          smctl windows certsync
 
       # =====================================
       # Build with Tauri Action (with Updater signing)
@@ -237,10 +247,12 @@ jobs:
             
             foreach ($exe in $exeFiles) {
               Write-Host "Signing: $($exe.FullName)"
-              smctl sign --keypair-alias $env:SM_CODE_SIGNING_CERT_SHA1_HASH --input $exe.FullName
+              
+              # Sign using signtool with SHA1 hash of the certificate
+              signtool sign /sha1 $env:SM_CODE_SIGNING_CERT_SHA1_HASH /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 "$($exe.FullName)"
               
               # Verify signature
-              smctl sign verify --input $exe.FullName
+              signtool verify /pa "$($exe.FullName)"
             }
           } else {
             Write-Host "Bundle path not found: $bundlePath"
