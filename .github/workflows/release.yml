@@ -214,15 +214,15 @@ jobs:
             exit 1
           }
 
-      # Windows: Build WITHOUT uploading (we sign first, then upload)
+      # Windows: Build WITHOUT uploading and WITHOUT updater signature (we sign with Windows cert first, then create .sig)
       - name: Build Tauri app (Windows)
         if: matrix.platform == 'windows-latest'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EXTENSION_ID: ${{ secrets.EXTENSION_ID }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # NOTE: TAURI_SIGNING_PRIVATE_KEY is NOT passed here intentionally!
+          # We create .sig AFTER Windows code signing to ensure the signature matches the signed binary
         with:
           # NO tagName = NO automatic upload to release
           args: ${{ format('--target {0} --bundles {1} --verbose', matrix.rust_target, matrix.bundle_arg) }}
@@ -256,6 +256,29 @@ jobs:
             }
           } else {
             Write-Host "Bundle path not found: $bundlePath"
+          }
+
+      # Create .sig file AFTER Windows code signing (so signature matches the signed binary)
+      - name: Create updater signature after Windows signing
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          $bundlePath = "src-tauri\target\${{ matrix.rust_target }}\release\bundle\nsis"
+          
+          if (Test-Path $bundlePath) {
+            $exeFiles = Get-ChildItem -Path $bundlePath -Filter "*-setup.exe"
+            
+            foreach ($exe in $exeFiles) {
+              Write-Host "Creating .sig for: $($exe.FullName)"
+              
+              # Create .sig file using tauri signer
+              npx tauri signer sign --private-key "$env:TAURI_SIGNING_PRIVATE_KEY" --password "$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD" "$($exe.FullName)"
+              
+              Write-Host "Created signature for: $($exe.FullName)"
+            }
           }
 
       # Upload SIGNED Windows binaries to release
