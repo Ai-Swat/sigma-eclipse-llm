@@ -107,6 +107,40 @@ jobs:
           rm certificate.p12
 
       # =====================================
+      # Windows Code Signing Setup (DigiCert KeyLocker)
+      # =====================================
+      - name: Setup DigiCert KeyLocker (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        env:
+          SM_CLIENT_CERT_FILE_B64: ${{ secrets.SM_CLIENT_CERT_FILE_B64 }}
+        run: |
+          # Download and install smctl
+          $smctlUrl = "https://one.digicert.com/signingmanager/api-ui/v1/releases/smtools-windows-x64.msi/download"
+          Invoke-WebRequest -Uri $smctlUrl -OutFile smtools.msi
+          Start-Process msiexec.exe -ArgumentList "/i", "smtools.msi", "/quiet", "/norestart" -Wait
+          
+          # Add to PATH
+          $smctlPath = "C:\Program Files\DigiCert\DigiCert One Signing Manager Tools"
+          echo "$smctlPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          
+          # Create certificate file from base64 secret
+          $certBytes = [Convert]::FromBase64String($env:SM_CLIENT_CERT_FILE_B64)
+          $certPath = "$env:RUNNER_TEMP\digicert_client_cert.p12"
+          [IO.File]::WriteAllBytes($certPath, $certBytes)
+          echo "SM_CLIENT_CERT_FILE=$certPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Verify DigiCert KeyLocker Setup (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        env:
+          SM_API_KEY: ${{ secrets.SM_API_KEY }}
+          SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
+          SM_HOST: https://clientauth.one.digicert.com
+        run: |
+          smctl healthcheck
+
+      # =====================================
       # Build with Tauri Action (with Updater signing)
       # =====================================
       - name: Build Tauri app
@@ -144,6 +178,35 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ format('--target {0} --bundles {1} --verbose', matrix.rust_target, matrix.bundle_arg) }}
+
+      # =====================================
+      # Windows Code Signing with DigiCert KeyLocker
+      # =====================================
+      - name: Sign Windows binaries with DigiCert KeyLocker
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        env:
+          SM_API_KEY: ${{ secrets.SM_API_KEY }}
+          SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
+          SM_CODE_SIGNING_CERT_SHA1_HASH: ${{ secrets.SM_CODE_SIGNING_CERT_SHA1_HASH }}
+          SM_HOST: https://clientauth.one.digicert.com
+        run: |
+          # Find and sign all .exe files in the bundle
+          $bundlePath = "src-tauri\target\${{ matrix.rust_target }}\release\bundle\nsis"
+          
+          if (Test-Path $bundlePath) {
+            $exeFiles = Get-ChildItem -Path $bundlePath -Filter "*.exe" -Recurse
+            
+            foreach ($exe in $exeFiles) {
+              Write-Host "Signing: $($exe.FullName)"
+              smctl sign --keypair-alias $env:SM_CODE_SIGNING_CERT_SHA1_HASH --input $exe.FullName
+              
+              # Verify signature
+              smctl sign verify --input $exe.FullName
+            }
+          } else {
+            Write-Host "Bundle path not found: $bundlePath"
+          }
 
       # =====================================
       # Upload updater artifacts
