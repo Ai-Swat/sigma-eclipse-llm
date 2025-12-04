@@ -269,7 +269,7 @@ jobs:
           $bundlePath = "src-tauri\target\${{ matrix.rust_target }}\release\bundle\nsis"
           
           if (Test-Path $bundlePath) {
-            $exeFiles = Get-ChildItem -Path $bundlePath -Filter "*-setup.exe"
+            $exeFiles = Get-ChildItem -Path $bundlePath -Filter "*-setup.exe" -Recurse
             
             foreach ($exe in $exeFiles) {
               Write-Host "Creating .sig for: $($exe.FullName)"
