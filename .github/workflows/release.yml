@@ -178,7 +178,7 @@ jobs:
           releaseBody: |
             ## What's New
             
-            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/master/CHANGELOG.md) for details.
             
             ## Downloads
             
