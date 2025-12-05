@@ -32,6 +32,29 @@ static LOG_FILE: Mutex<Option<File>> = Mutex::new(None);
 /// Cached status for change detection (checked after each message)
 static CACHED_STATUS: Mutex<Option<CachedStatus>> = Mutex::new(None);
 
+/// Set binary mode for stdin/stdout on Windows
+/// This is critical for Native Messaging Protocol to work correctly
+#[cfg(windows)]
+fn set_binary_mode() {
+    // Windows _setmode constants
+    const O_BINARY: i32 = 0x8000;
+    
+    extern "C" {
+        fn _setmode(fd: i32, mode: i32) -> i32;
+    }
+    
+    unsafe {
+        // stdin = 0, stdout = 1 (standard C file descriptors)
+        _setmode(0, O_BINARY);
+        _setmode(1, O_BINARY);
+    }
+}
+
+#[cfg(not(windows))]
+fn set_binary_mode() {
+    // No-op on non-Windows platforms
+}
+
 /// Get path to log file
 fn get_log_file_path() -> Option<PathBuf> {
     let app_dir = dirs::data_dir()?.join("com.sigma-eclipse.llm");
@@ -449,6 +472,9 @@ fn process_command(message: NativeMessage) -> NativeResponse {
 }
 
 fn main() {
+    // Set binary mode for stdin/stdout on Windows (critical for Native Messaging!)
+    set_binary_mode();
+    
     // Initialize log file (overwrites previous)
     init_log_file();
     log!("Host started");
