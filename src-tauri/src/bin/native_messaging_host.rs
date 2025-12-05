@@ -13,7 +13,10 @@ use std::fs::{File, OpenOptions};
 use std::io::{self, Read, Write};
 use std::path::PathBuf;
 use std::process::Child;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
+use std::thread;
+use std::time::Duration;
 
 // Import shared modules from main crate
 use sigma_eclipse_lib::ipc_state::{is_tauri_app_running, read_ipc_state};
@@ -28,6 +31,12 @@ static SERVER_PROCESS: Mutex<Option<Child>> = Mutex::new(None);
 
 /// Global log file handle
 static LOG_FILE: Mutex<Option<File>> = Mutex::new(None);
+
+/// Lock for stdout to prevent interleaving between responses and push messages
+static STDOUT_LOCK: Mutex<()> = Mutex::new(());
+
+/// Flag to signal background thread to exit
+static SHOULD_EXIT: AtomicBool = AtomicBool::new(false);
 
 /// Get path to log file
 fn get_log_file_path() -> Option<PathBuf> {
@@ -79,6 +88,22 @@ struct NativeResponse {
     error: Option<String>,
 }
 
+#[derive(Debug, Serialize)]
+struct StatusPushMessage {
+    #[serde(rename = "type")]
+    msg_type: &'static str,
+    data: Value,
+}
+
+/// Cached status for change detection
+#[derive(Default, Clone, PartialEq)]
+struct CachedStatus {
+    app_running: bool,
+    model_running: bool,
+    is_downloading: bool,
+    download_progress: Option<f64>,
+}
+
 /// Read a message from stdin using Native Messaging Protocol
 /// Format: [4 bytes length][JSON message]
 fn read_message() -> Result<NativeMessage> {
@@ -100,11 +125,13 @@ fn read_message() -> Result<NativeMessage> {
     Ok(message)
 }
 
-/// Send a response to stdout using Native Messaging Protocol
+/// Send a response to stdout using Native Messaging Protocol (with lock for thread safety)
 /// Format: [4 bytes length][JSON message]
 fn send_response(response: &NativeResponse) -> Result<()> {
     let json = serde_json::to_string(response).context("Failed to serialize response")?;
     let length = json.len() as u32;
+
+    let _lock = STDOUT_LOCK.lock().unwrap();
 
     io::stdout()
         .write_all(&length.to_ne_bytes())
@@ -117,6 +144,22 @@ fn send_response(response: &NativeResponse) -> Result<()> {
     Ok(())
 }
 
+/// Send a push message to stdout (same protocol as response)
+fn send_push(message: &StatusPushMessage) -> Result<()> {
+    let json = serde_json::to_string(message).context("Failed to serialize push")?;
+    let length = json.len() as u32;
+
+    io::stdout()
+        .write_all(&length.to_ne_bytes())
+        .context("Failed to write push length")?;
+    io::stdout()
+        .write_all(json.as_bytes())
+        .context("Failed to write push body")?;
+    io::stdout().flush().context("Failed to flush stdout")?;
+
+    Ok(())
+}
+
 /// Log to stderr and file (stdout is reserved for Native Messaging Protocol)
 macro_rules! log {
     ($($arg:tt)*) => {
@@ -124,6 +167,50 @@ macro_rules! log {
         eprintln!("[Native Host] {}", msg);
         write_to_log_file(&msg);
     };
+}
+
+/// Check current status and send push if changed
+fn check_and_push_status(cached: &mut CachedStatus) {
+    let new_status = CachedStatus {
+        app_running: is_tauri_app_running().unwrap_or(false),
+        model_running: get_status().map(|(r, _)| r).unwrap_or(false),
+        is_downloading: read_ipc_state().map(|s| s.is_downloading).unwrap_or(false),
+        download_progress: read_ipc_state().ok().and_then(|s| s.download_progress),
+    };
+
+    if new_status != *cached {
+        log!("Status changed, sending push update");
+
+        let push = StatusPushMessage {
+            msg_type: "status_update",
+            data: json!({
+                "appRunning": new_status.app_running,
+                "modelRunning": new_status.model_running,
+                "isDownloading": new_status.is_downloading,
+                "downloadProgress": new_status.download_progress,
+            }),
+        };
+
+        // Lock stdout to prevent interleaving with responses
+        let _lock = STDOUT_LOCK.lock().unwrap();
+        if let Err(e) = send_push(&push) {
+            log!("Failed to send push: {}", e);
+        }
+
+        *cached = new_status;
+    }
+}
+
+/// Start background thread for status monitoring
+fn start_status_monitor() {
+    thread::spawn(|| {
+        let mut cached = CachedStatus::default();
+
+        while !SHOULD_EXIT.load(Ordering::Relaxed) {
+            check_and_push_status(&mut cached);
+            thread::sleep(Duration::from_millis(500));
+        }
+    });
 }
 
 /// Handle start_server command
@@ -382,6 +469,9 @@ fn main() {
     init_log_file();
     log!("Host started");
 
+    // Start background status monitor
+    start_status_monitor();
+
     // Main message loop
     loop {
         match read_message() {
@@ -391,10 +481,14 @@ fn main() {
                     break;
                 }
             }
-            Err(_) => break,
+            Err(e) => {
+                log!("read_error: {}", e);
+                break;
+            }
         }
     }
 
+    SHOULD_EXIT.store(true, Ordering::Relaxed);
     log!("Host stopped");
 }
 
