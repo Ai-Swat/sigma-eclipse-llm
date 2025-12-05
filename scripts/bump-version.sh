@@ -62,3 +62,4 @@ echo "  ✅ src-tauri/Cargo.toml"
 echo ""
 echo "🎉 Version bumped to $NEW_VERSION"
 
+
