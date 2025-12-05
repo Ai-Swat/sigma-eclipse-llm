@@ -69,6 +69,20 @@ jobs:
           cp target/${{ matrix.rust_target }}/release/sigma-eclipse-host binaries/sigma-eclipse-host-${{ matrix.target }}
           chmod +x binaries/sigma-eclipse-host-${{ matrix.target }}
 
+      # Sign the native messaging host binary with entitlements (before Tauri bundles it)
+      - name: Sign native messaging host (macOS)
+        if: matrix.platform == 'macos-latest'
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          # Sign the native host binary with hardened runtime and entitlements
+          codesign --force --options runtime --entitlements src-tauri/entitlements.native-host.plist \
+            --sign "$APPLE_SIGNING_IDENTITY" \
+            src-tauri/binaries/sigma-eclipse-host-${{ matrix.target }}
+          
+          # Verify signature
+          codesign --verify --verbose src-tauri/binaries/sigma-eclipse-host-${{ matrix.target }}
+
       - name: Build native messaging host (Windows)
         if: matrix.platform == 'windows-latest'
         run: |
