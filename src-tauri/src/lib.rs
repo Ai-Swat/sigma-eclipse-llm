@@ -205,6 +205,12 @@ pub fn run() {
                     log::warn!("Failed to clear Tauri app status: {}", e);
                 }
                 
+                // Always update server status in IPC state first (in case we don't have the child handle)
+                // This ensures the state is cleared even if the process was started elsewhere
+                if let Err(e) = ipc_state::update_server_status(false, None) {
+                    log::warn!("Failed to clear server status in IPC state: {}", e);
+                }
+                
                 // Get server state and stop server if running
                 if let Some(state) = app_handle.try_state::<ServerState>() {
                     let mut process_guard = state.process.lock().unwrap();
