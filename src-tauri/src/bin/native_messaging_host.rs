@@ -13,7 +13,10 @@ use std::fs::{File, OpenOptions};
 use std::io::{self, Read, Write};
 use std::path::PathBuf;
 use std::process::Child;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
+use std::thread;
+use std::time::Duration;
 
 // Import shared modules from main crate
 use sigma_eclipse_lib::ipc_state::{is_tauri_app_running, read_ipc_state};
@@ -29,8 +32,14 @@ static SERVER_PROCESS: Mutex<Option<Child>> = Mutex::new(None);
 /// Global log file handle
 static LOG_FILE: Mutex<Option<File>> = Mutex::new(None);
 
-/// Cached status for change detection (checked after each message)
+/// Cached status for change detection
 static CACHED_STATUS: Mutex<Option<CachedStatus>> = Mutex::new(None);
+
+/// Lock for stdout to prevent interleaving between responses and push messages
+static STDOUT_LOCK: Mutex<()> = Mutex::new(());
+
+/// Flag to signal background thread to exit
+static SHOULD_EXIT: AtomicBool = AtomicBool::new(false);
 
 /// Set binary mode for stdin/stdout on Windows
 /// This is critical for Native Messaging Protocol to work correctly
@@ -142,11 +151,13 @@ fn read_message() -> Result<NativeMessage> {
     Ok(message)
 }
 
-/// Send a response to stdout using Native Messaging Protocol
+/// Send a response to stdout using Native Messaging Protocol (with lock for thread safety)
 /// Format: [4 bytes length][JSON message]
 fn send_response(response: &NativeResponse) -> Result<()> {
     let json = serde_json::to_string(response).context("Failed to serialize response")?;
     let length = json.len() as u32;
+
+    let _lock = STDOUT_LOCK.lock().unwrap();
 
     io::stdout()
         .write_all(&length.to_ne_bytes())
@@ -159,10 +170,12 @@ fn send_response(response: &NativeResponse) -> Result<()> {
     Ok(())
 }
 
-/// Send a push message to stdout (same protocol as response)
+/// Send a push message to stdout (same protocol as response, with lock)
 fn send_push(message: &StatusPushMessage) -> Result<()> {
     let json = serde_json::to_string(message).context("Failed to serialize push")?;
     let length = json.len() as u32;
+
+    let _lock = STDOUT_LOCK.lock().unwrap();
 
     io::stdout()
         .write_all(&length.to_ne_bytes())
@@ -186,8 +199,6 @@ macro_rules! log {
 
 /// Check current status and send push if changed
 fn check_and_push_status() {
-    log!("check_and_push_status called");
-    
     let new_status = CachedStatus {
         app_running: is_tauri_app_running().unwrap_or(false),
         model_running: get_status().map(|(r, _)| r).unwrap_or(false),
@@ -195,25 +206,13 @@ fn check_and_push_status() {
         download_progress: read_ipc_state().ok().and_then(|s| s.download_progress),
     };
 
-    log!(
-        "new_status: app={}, model={}, downloading={}, progress={:?}",
-        new_status.app_running,
-        new_status.model_running,
-        new_status.is_downloading,
-        new_status.download_progress
-    );
-
     let mut cached_guard = CACHED_STATUS.lock().unwrap();
     let should_push = match &*cached_guard {
         Some(cached) => *cached != new_status,
         None => true, // First check, always send initial status
     };
 
-    log!("should_push: {}", should_push);
-
     if should_push {
-        log!("Status changed, sending push update");
-
         let push = StatusPushMessage {
             msg_type: "status_update",
             data: json!({
@@ -226,12 +225,20 @@ fn check_and_push_status() {
 
         if let Err(e) = send_push(&push) {
             log!("Failed to send push: {}", e);
-        } else {
-            log!("Push sent successfully");
         }
 
         *cached_guard = Some(new_status);
     }
+}
+
+/// Start background thread for status monitoring
+fn start_status_monitor() {
+    thread::spawn(|| {
+        while !SHOULD_EXIT.load(Ordering::Relaxed) {
+            check_and_push_status();
+            thread::sleep(Duration::from_millis(500));
+        }
+    });
 }
 
 /// Handle start_server command
@@ -493,6 +500,9 @@ fn main() {
     init_log_file();
     log!("Host started");
 
+    // Start background status monitor thread
+    start_status_monitor();
+
     // Main message loop
     loop {
         match read_message() {
@@ -501,16 +511,14 @@ fn main() {
                 if send_response(&response).is_err() {
                     break;
                 }
-                // Check and send status push after each processed message
-                check_and_push_status();
             }
-            Err(e) => {
-                log!("read_error: {}", e);
+            Err(_) => {
                 break;
             }
         }
     }
 
+    SHOULD_EXIT.store(true, Ordering::Relaxed);
     log!("Host stopped");
 }
 
