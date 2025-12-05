@@ -186,6 +186,8 @@ macro_rules! log {
 
 /// Check current status and send push if changed
 fn check_and_push_status() {
+    log!("check_and_push_status called");
+    
     let new_status = CachedStatus {
         app_running: is_tauri_app_running().unwrap_or(false),
         model_running: get_status().map(|(r, _)| r).unwrap_or(false),
@@ -193,11 +195,21 @@ fn check_and_push_status() {
         download_progress: read_ipc_state().ok().and_then(|s| s.download_progress),
     };
 
+    log!(
+        "new_status: app={}, model={}, downloading={}, progress={:?}",
+        new_status.app_running,
+        new_status.model_running,
+        new_status.is_downloading,
+        new_status.download_progress
+    );
+
     let mut cached_guard = CACHED_STATUS.lock().unwrap();
     let should_push = match &*cached_guard {
         Some(cached) => *cached != new_status,
         None => true, // First check, always send initial status
     };
+
+    log!("should_push: {}", should_push);
 
     if should_push {
         log!("Status changed, sending push update");
@@ -214,6 +226,8 @@ fn check_and_push_status() {
 
         if let Err(e) = send_push(&push) {
             log!("Failed to send push: {}", e);
+        } else {
+            log!("Push sent successfully");
         }
 
         *cached_guard = Some(new_status);
