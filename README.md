@@ -126,7 +126,7 @@ Access settings via the ⚙️ gear icon:
 ```bash
 # Clone the repository
 git clone https://github.com/ai-swat/sigma-eclipse-llm.git
-cd sigma-eclipse
+cd sigma-eclipse-llm
 
 # Install dependencies
 npm install
@@ -146,7 +146,7 @@ Built artifacts will be in `src-tauri/target/release/bundle/`
 ### Project Structure
 
 ```
-sigma-eclipse/
+sigma-eclipse-llm/
 ├── src/                    # React frontend
 │   ├── components/         # UI components
 │   ├── hooks/              # React hooks
