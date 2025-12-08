@@ -63,8 +63,8 @@ Download the latest release for your platform:
 
 | Platform | Download |
 |----------|----------|
-| macOS (ARM) | [Sigma Eclipse.dmg](https://github.com/ai-swat/sigma-eclipse/releases/latest) |
-| Windows | [Sigma Eclipse Setup.exe](https://github.com/ai-swat/sigma-eclipse/releases/latest) |
+| macOS (ARM) | [Sigma Eclipse.dmg](https://github.com/ai-swat/sigma-eclipse-llm/releases/latest) |
+| Windows | [Sigma Eclipse Setup.exe](https://github.com/ai-swat/sigma-eclipse-llm/releases/latest) |
 
 ### First Launch
 
@@ -125,7 +125,7 @@ Access settings via the ⚙️ gear icon:
 
 ```bash
 # Clone the repository
-git clone https://github.com/ai-swat/sigma-eclipse.git
+git clone https://github.com/ai-swat/sigma-eclipse-llm.git
 cd sigma-eclipse
 
 # Install dependencies
