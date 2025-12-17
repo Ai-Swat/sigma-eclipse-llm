@@ -5,7 +5,14 @@ use crate::types::DownloadProgress;
 use futures_util::StreamExt;
 use std::fs;
 use tauri::{AppHandle, Emitter};
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncSeekExt, AsyncWriteExt};
+
+/// Maximum number of retry attempts for chunk read errors
+const MAX_CHUNK_RETRIES: u32 = 10;
+/// Base delay for exponential backoff (in milliseconds)
+const BASE_RETRY_DELAY_MS: u64 = 1000;
+/// Maximum delay between retries (in milliseconds)
+const MAX_RETRY_DELAY_MS: u64 = 30000;
 
 /// Create HTTP client for llama.cpp downloads
 fn create_http_client() -> Result<reqwest::Client, String> {
@@ -13,8 +20,84 @@ fn create_http_client() -> Result<reqwest::Client, String> {
         .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         .redirect(reqwest::redirect::Policy::limited(10))
         .timeout(std::time::Duration::from_secs(300))
+        .connect_timeout(std::time::Duration::from_secs(30))
+        .pool_idle_timeout(std::time::Duration::from_secs(90))
+        .tcp_keepalive(std::time::Duration::from_secs(60))
         .build()
         .map_err(|e| format!("Failed to create HTTP client: {}", e))
+}
+
+/// Check if server supports Range requests
+async fn check_range_support(client: &reqwest::Client, url: &str) -> bool {
+    match client.head(url).send().await {
+        Ok(response) => {
+            let accepts_ranges = response
+                .headers()
+                .get("accept-ranges")
+                .map(|v| v.to_str().unwrap_or("") != "none")
+                .unwrap_or(false);
+            log::info!("Server range support: {}", accepts_ranges);
+            accepts_ranges
+        }
+        Err(e) => {
+            log::warn!("Failed to check range support: {}", e);
+            false
+        }
+    }
+}
+
+/// Calculate exponential backoff delay
+fn calculate_backoff_delay(attempt: u32) -> std::time::Duration {
+    let delay_ms = BASE_RETRY_DELAY_MS * 2u64.pow(attempt.min(10));
+    std::time::Duration::from_millis(delay_ms.min(MAX_RETRY_DELAY_MS))
+}
+
+/// Start or resume a download request from a given byte offset
+async fn start_download_request(
+    client: &reqwest::Client,
+    url: &str,
+    start_byte: u64,
+) -> Result<(reqwest::Response, Option<u64>), String> {
+    let mut request = client
+        .get(url)
+        .header("Accept", "*/*")
+        .header("Accept-Encoding", "identity");
+
+    if start_byte > 0 {
+        log::info!("Resuming download from byte {}", start_byte);
+        request = request.header("Range", format!("bytes={}-", start_byte));
+    }
+
+    let response = request
+        .send()
+        .await
+        .map_err(|e| format!("Failed to download: {}", e))?;
+
+    let status = response.status();
+    log::info!("HTTP response status: {}", status);
+
+    // 200 OK for new download, 206 Partial Content for resume
+    if !status.is_success() && status != reqwest::StatusCode::PARTIAL_CONTENT {
+        return Err(format!(
+            "HTTP error: {} - {}",
+            status.as_u16(),
+            status.canonical_reason().unwrap_or("Unknown")
+        ));
+    }
+
+    let total_size = if start_byte > 0 && status == reqwest::StatusCode::PARTIAL_CONTENT {
+        // For resumed downloads, parse Content-Range header to get total size
+        response
+            .headers()
+            .get("content-range")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|s| s.split('/').last())
+            .and_then(|s| s.parse::<u64>().ok())
+    } else {
+        response.content_length()
+    };
+
+    Ok((response, total_size))
 }
 
 /// Get the path to the version file
@@ -190,25 +273,28 @@ pub async fn download_llama_cpp(app: AppHandle) -> Result<String, String> {
     // Create HTTP client with proper headers
     let client = create_http_client()?;
 
-    // Download zip file with streaming
-    let response = client
-        .get(url)
-        .header("Accept", "*/*")
-        .header("Accept-Encoding", "identity")
-        .send()
-        .await
-        .map_err(|e| format!("Failed to download: {}", e))?;
+    // Check if server supports range requests for resume capability
+    let supports_resume = check_range_support(&client, url).await;
 
-    // Check HTTP status
-    let status = response.status();
-    log::info!("HTTP response status: {}", status);
-    
-    if !status.is_success() {
-        return Err(format!("HTTP error: {} - {}", status.as_u16(), status.canonical_reason().unwrap_or("Unknown")));
-    }
+    // Check if partial download exists
+    let mut downloaded: u64 = if supports_resume && zip_path.exists() {
+        let existing_size = tokio::fs::metadata(&zip_path)
+            .await
+            .map(|m| m.len())
+            .unwrap_or(0);
+        if existing_size > 0 {
+            log::info!(
+                "Found partial download: {:.2} MB, will attempt to resume",
+                existing_size as f64 / 1_048_576.0
+            );
+        }
+        existing_size
+    } else {
+        0
+    };
 
-    let total_size = response.content_length();
-    
+    let (response, total_size) = start_download_request(&client, url, downloaded).await?;
+
     if let Some(size) = total_size {
         log::info!("llama.cpp archive size: {:.2} MB", size as f64 / 1_048_576.0);
     } else {
@@ -216,89 +302,183 @@ pub async fn download_llama_cpp(app: AppHandle) -> Result<String, String> {
     }
 
     // Log some response headers for debugging
-    log::info!("Content-Type: {:?}", response.headers().get("content-type"));
-    log::info!("Content-Encoding: {:?}", response.headers().get("content-encoding"));
+    log::info!(
+        "Content-Type: {:?}",
+        response.headers().get("content-type")
+    );
+    log::info!(
+        "Content-Encoding: {:?}",
+        response.headers().get("content-encoding")
+    );
 
     // Update IPC state - download started
-    let _ = update_download_status(true, Some(0.0));
+    let initial_percentage = total_size.map(|total| (downloaded as f64 / total as f64) * 100.0);
+    let _ = update_download_status(true, initial_percentage.or(Some(0.0)));
 
     // Emit initial progress
     let _ = app.emit(
         "download-progress",
         DownloadProgress {
-            downloaded: 0,
+            downloaded,
             total: total_size,
-            percentage: Some(0.0),
+            percentage: initial_percentage.or(Some(0.0)),
             message: "Starting llama.cpp download...".to_string(),
         },
     );
 
-    let mut file = tokio::fs::File::create(&zip_path)
-        .await
-        .map_err(|e| format!("Failed to create file: {}", e))?;
+    // Open file for writing (append if resuming)
+    let mut file = if downloaded > 0 {
+        let mut f = tokio::fs::OpenOptions::new()
+            .write(true)
+            .append(true)
+            .open(&zip_path)
+            .await
+            .map_err(|e| format!("Failed to open zip file for resume: {}", e))?;
+        // Seek to end to ensure we're appending
+        f.seek(std::io::SeekFrom::End(0))
+            .await
+            .map_err(|e| format!("Failed to seek to end of file: {}", e))?;
+        f
+    } else {
+        tokio::fs::File::create(&zip_path)
+            .await
+            .map_err(|e| format!("Failed to create file: {}", e))?
+    };
 
     let mut stream = response.bytes_stream();
-    let mut downloaded: u64 = 0;
-    let mut last_emit_mb = 0u64;
-    let mut last_log_mb = 0u64;
+    let mut last_emit_mb = downloaded / (10 * 1024 * 1024);
+    let mut last_log_mb = downloaded / (50 * 1024 * 1024);
+    let mut consecutive_errors = 0u32;
 
     log::info!("Starting download stream...");
 
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|e| format!("Failed to read chunk: {}", e))?;
+    loop {
+        match stream.next().await {
+            Some(Ok(chunk)) => {
+                // Reset error counter on successful chunk
+                consecutive_errors = 0;
 
-        file.write_all(&chunk)
-            .await
-            .map_err(|e| format!("Failed to write chunk: {}", e))?;
+                file.write_all(&chunk)
+                    .await
+                    .map_err(|e| format!("Failed to write chunk: {}", e))?;
 
-        downloaded += chunk.len() as u64;
+                downloaded += chunk.len() as u64;
 
-        // Log progress every 50 MB to console
-        let current_log_mb = downloaded / (50 * 1024 * 1024);
-        if current_log_mb > last_log_mb {
-            last_log_mb = current_log_mb;
-            let percentage = total_size.map(|total| (downloaded as f64 / total as f64) * 100.0);
-            if let Some(pct) = percentage {
-                log::info!(
-                    "Downloaded: {:.2} MB ({:.1}%)",
-                    downloaded as f64 / 1_048_576.0,
-                    pct
-                );
-            } else {
-                log::info!("Downloaded: {:.2} MB", downloaded as f64 / 1_048_576.0);
+                // Log progress every 50 MB to console
+                let current_log_mb = downloaded / (50 * 1024 * 1024);
+                if current_log_mb > last_log_mb {
+                    last_log_mb = current_log_mb;
+                    let percentage =
+                        total_size.map(|total| (downloaded as f64 / total as f64) * 100.0);
+                    if let Some(pct) = percentage {
+                        log::info!(
+                            "Downloaded: {:.2} MB ({:.1}%)",
+                            downloaded as f64 / 1_048_576.0,
+                            pct
+                        );
+                    } else {
+                        log::info!("Downloaded: {:.2} MB", downloaded as f64 / 1_048_576.0);
+                    }
+                }
+
+                // Emit progress every 10 MB to reduce event spam
+                let current_mb = downloaded / (10 * 1024 * 1024);
+                if current_mb > last_emit_mb
+                    || total_size.map_or(false, |total| downloaded >= total)
+                {
+                    last_emit_mb = current_mb;
+                    let percentage =
+                        total_size.map(|total| (downloaded as f64 / total as f64) * 100.0);
+                    let message = if let Some(total) = total_size {
+                        format!(
+                            "Downloading llama.cpp: {:.2} MB / {:.2} MB",
+                            downloaded as f64 / 1_048_576.0,
+                            total as f64 / 1_048_576.0,
+                        )
+                    } else {
+                        format!(
+                            "Downloading llama.cpp: {:.2} MB",
+                            downloaded as f64 / 1_048_576.0
+                        )
+                    };
+
+                    // Update IPC state with progress
+                    let _ = update_download_status(true, percentage);
+
+                    let _ = app.emit(
+                        "download-progress",
+                        DownloadProgress {
+                            downloaded,
+                            total: total_size,
+                            percentage,
+                            message,
+                        },
+                    );
+                }
             }
-        }
+            Some(Err(e)) => {
+                consecutive_errors += 1;
+                log::warn!(
+                    "Chunk read error (attempt {}/{}): {}",
+                    consecutive_errors,
+                    MAX_CHUNK_RETRIES,
+                    e
+                );
 
-        // Emit progress every 10 MB to reduce event spam
-        let current_mb = downloaded / (10 * 1024 * 1024);
-        if current_mb > last_emit_mb || total_size.map_or(false, |total| downloaded >= total) {
-            last_emit_mb = current_mb;
-            let percentage = total_size.map(|total| (downloaded as f64 / total as f64) * 100.0);
-            let message = if let Some(total) = total_size {
-                format!(
-                    "Downloading llama.cpp: {:.2} MB / {:.2} MB",
-                    downloaded as f64 / 1_048_576.0,
-                    total as f64 / 1_048_576.0,
-                )
-            } else {
-                format!(
-                    "Downloading llama.cpp: {:.2} MB",
-                    downloaded as f64 / 1_048_576.0
-                )
-            };
+                if consecutive_errors >= MAX_CHUNK_RETRIES {
+                    return Err(format!(
+                        "Failed to read chunk after {} retries: {}",
+                        MAX_CHUNK_RETRIES, e
+                    ));
+                }
 
-            // Update IPC state with progress
-            let _ = update_download_status(true, percentage);
+                if !supports_resume {
+                    return Err(format!(
+                        "Failed to read chunk and server does not support resume: {}",
+                        e
+                    ));
+                }
 
-            let _ = app.emit(
-                "download-progress",
-                DownloadProgress {
-                    downloaded,
-                    total: total_size,
-                    percentage,
-                    message,
-                },
-            );
+                // Flush current data before reconnecting
+                file.flush()
+                    .await
+                    .map_err(|e| format!("Failed to flush file before retry: {}", e))?;
+                file.sync_all()
+                    .await
+                    .map_err(|e| format!("Failed to sync file before retry: {}", e))?;
+
+                // Calculate backoff delay
+                let delay = calculate_backoff_delay(consecutive_errors - 1);
+                log::info!("Waiting {:?} before retry...", delay);
+
+                let _ = app.emit(
+                    "download-progress",
+                    DownloadProgress {
+                        downloaded,
+                        total: total_size,
+                        percentage: total_size
+                            .map(|total| (downloaded as f64 / total as f64) * 100.0),
+                        message: format!(
+                            "Connection lost, retrying in {} seconds...",
+                            delay.as_secs()
+                        ),
+                    },
+                );
+
+                tokio::time::sleep(delay).await;
+
+                // Reconnect and resume from current position
+                log::info!("Attempting to resume download from byte {}", downloaded);
+
+                let (new_response, _) = start_download_request(&client, url, downloaded).await?;
+                stream = new_response.bytes_stream();
+
+                log::info!("Successfully resumed download");
+            }
+            None => {
+                // Stream ended
+                break;
+            }
         }
     }
 
@@ -311,14 +491,14 @@ pub async fn download_llama_cpp(app: AppHandle) -> Result<String, String> {
     file.flush()
         .await
         .map_err(|e| format!("Failed to flush file: {}", e))?;
-    
+
     file.sync_all()
         .await
         .map_err(|e| format!("Failed to sync file: {}", e))?;
-    
+
     // Explicitly close file before verification to ensure all data is persisted
     drop(file);
-    
+
     log::info!("File downloaded successfully: {} bytes", downloaded);
 
     // Verify SHA-256 checksum
