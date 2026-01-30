@@ -3,9 +3,10 @@ import "./ProgressBar.css";
 
 interface ProgressBarProps {
   downloadProgress: DownloadProgress | null;
+  onCancel: () => void;
 }
 
-export const ProgressBar = ({ downloadProgress }: ProgressBarProps) => {
+export const ProgressBar = ({ downloadProgress, onCancel }: ProgressBarProps & { onCancel: () => void }) => {
   if (!downloadProgress) return null;
 
   return (
@@ -20,6 +21,14 @@ export const ProgressBar = ({ downloadProgress }: ProgressBarProps) => {
         {downloadProgress.percentage !== null
           ? `${downloadProgress.percentage.toFixed(1)}%`
           : "Downloading..."}
+      </div>
+      <div>
+        <button
+          className="cancel-button"
+          onClick={onCancel}
+        >
+          Cancel
+        </button>
       </div>
     </div>
   );

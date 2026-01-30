@@ -25,6 +25,7 @@ interface SettingsPanelProps {
   onRestoreDefaults: () => void;
   onClearAllData: () => void;
   isProduction: boolean;
+  onCancelDownload: () => void;
 }
 
 export const SettingsPanel = ({
@@ -46,6 +47,7 @@ export const SettingsPanel = ({
   onRestoreDefaults,
   onClearAllData,
   isProduction,
+  onCancelDownload
 }: SettingsPanelProps) => {
   // Local state for input values to allow empty strings during editing
   const [ctxSizeValue, setCtxSizeValue] = useState(ctxSize.toString());
@@ -93,7 +95,7 @@ export const SettingsPanel = ({
                   </button>
                 </div>
 
-                {isDownloadingLlama && <ProgressBar downloadProgress={downloadProgress} />}
+                {isDownloadingLlama && <ProgressBar downloadProgress={downloadProgress} onCancel={onCancelDownload} />}
               </>
             )}
 
@@ -136,7 +138,7 @@ export const SettingsPanel = ({
               </button>
             </div>
 
-            {isDownloadingModel && <ProgressBar downloadProgress={downloadProgress} />}
+            {isDownloadingModel && <ProgressBar downloadProgress={downloadProgress} onCancel={onCancelDownload}/>}
           </div>
 
           <div className="section">

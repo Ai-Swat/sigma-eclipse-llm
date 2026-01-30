@@ -8,5 +8,6 @@ mod model_download;
 pub use llama_download::{check_llama_version, download_llama_cpp};
 pub use model_download::{
     check_model_downloaded, delete_model, download_model_by_name, list_available_models,
+    cancel_download_command,
 };
 

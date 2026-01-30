@@ -2,6 +2,7 @@ use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 use tauri::{Emitter, Manager};
+use types::{DownloadState};
 
 #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
 use tauri_plugin_updater::UpdaterExt;
@@ -20,7 +21,7 @@ mod types;
 // Re-export command functions
 use download::{
     check_llama_version, check_model_downloaded, delete_model, download_llama_cpp,
-    download_model_by_name, list_available_models,
+    download_model_by_name, list_available_models, cancel_download_command,
 };
 use server::{get_server_status, start_server, stop_server};
 use settings::{
@@ -107,10 +108,12 @@ pub fn run() {
         .manage(ServerState {
             process: Mutex::new(None),
         })
+        .manage(DownloadState::default())
         .invoke_handler(tauri::generate_handler![
             check_llama_version,
             download_llama_cpp,
             download_model_by_name,
+            cancel_download_command,
             list_available_models,
             check_model_downloaded,
             delete_model,

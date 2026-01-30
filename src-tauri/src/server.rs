@@ -4,69 +4,63 @@ use crate::settings::get_server_settings;
 use crate::types::{ServerState, ServerStatus};
 use std::io::{BufRead, BufReader};
 use tauri::State;
+// Добавьте импорты в начало файла, если их нет
+use std::time::{Duration, Instant};
+use reqwest::Client; // reqwest уже есть в Cargo.toml
 
 #[tauri::command]
 pub async fn start_server(
     state: State<'_, ServerState>,
 ) -> Result<String, String> {
-    let mut process_guard = state.process.lock().unwrap();
+    // 1. Вся работа с Mutex — СТРОГО внутри этого блока
+    let (pid, port, ctx_size, gpu_layers) = {
+        let mut process_guard = state.process.lock().unwrap();
 
-    // Check if local process is running
-    if let Some(ref mut child) = *process_guard {
-        match child.try_wait() {
-            Ok(None) => return Err("Server is already running".to_string()),
-            Ok(Some(_)) => {
-                *process_guard = None;
-            }
-            Err(_) => {
-                *process_guard = None;
+        // Проверяем, не запущен ли уже процесс
+        if let Some(ref mut child) = *process_guard {
+            match child.try_wait() {
+                Ok(None) => return Err("Server is already running".to_string()),
+                Ok(Some(_)) => *process_guard = None,
+                Err(_) => *process_guard = None,
             }
         }
-    }
 
-    // Get settings from settings.json
-    let (port, ctx_size, gpu_layers) = get_server_settings().map_err(|e| e.to_string())?;
+        // Извлекаем настройки и запускаем
+        let (port, ctx_size, gpu_layers) = get_server_settings().map_err(|e| e.to_string())?;
+        let config = ServerConfig { port, ctx_size, gpu_layers };
 
-    // Use shared server manager to start process
-    let config = ServerConfig {
-        port,
-        ctx_size,
-        gpu_layers,
+        let child = start_server_process(config, true).map_err(|e| e.to_string())?;
+        let pid = child.id();
+        
+        // Сохраняем ребенка в стейт
+        *process_guard = Some(child);
+        
+        // Возвращаем кортеж данных наружу из блока
+        (pid, port, ctx_size, gpu_layers)
+        
+        // Тут process_guard выходит из области видимости и САМ делает unlock()
     };
 
-    let mut child = start_server_process(config, true).map_err(|e| e.to_string())?;
-    let pid = child.id();
-
-    // Capture stdout and stderr for logging in Tauri context
-    if let Some(stdout) = child.stdout.take() {
-        std::thread::spawn(move || {
-            let reader = BufReader::new(stdout);
-            for line in reader.lines() {
-                if let Ok(line) = line {
-                    log::info!("[llama.cpp] {}", line);
-                }
-            }
-        });
+    // 2. Теперь мы ВНЕ блока. Мьютекс свободен. Можно юзать .await
+    log::info!("Waiting for LLM server to be ready on port {}...", port);
+    
+    match wait_for_server_ready(port, 60).await {
+        Ok(_) => {
+            log::info!("LLM Server is ready!");
+            Ok(format!(
+                "Server started on port {} (PID: {}, ctx: {}, gpu layers: {})",
+                port, pid, ctx_size, gpu_layers
+            ))
+        }
+        Err(e) => {
+            log::error!("Server failed to start check: {}", e);
+            // Тут вызываем стоп, так как сервер завис или не отвечает
+            let _ = stop_server(state.clone()).await; 
+            Err(format!("Failed to start server: {}", e))
+        }
     }
-
-    if let Some(stderr) = child.stderr.take() {
-        std::thread::spawn(move || {
-            let reader = BufReader::new(stderr);
-            for line in reader.lines() {
-                if let Ok(line) = line {
-                    log::warn!("[llama.cpp] {}", line);
-                }
-            }
-        });
-    }
-
-    *process_guard = Some(child);
-
-    Ok(format!(
-        "Server started on port {} (PID: {}, ctx: {}, gpu layers: {})",
-        port, pid, ctx_size, gpu_layers
-    ))
 }
+
 
 #[tauri::command]
 pub async fn stop_server(state: State<'_, ServerState>) -> Result<String, String> {
@@ -147,3 +141,33 @@ pub async fn get_server_status(state: State<'_, ServerState>) -> Result<ServerSt
     }
 }
 
+
+// Новая вспомогательная функция
+async fn wait_for_server_ready(port: u16, timeout_secs: u64) -> Result<(), String> {
+    let url = format!("http://127.0.0.1:{}/health", port);
+    let client = Client::builder()
+        .timeout(Duration::from_secs(1))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let start_time = Instant::now();
+    
+    loop {
+        if start_time.elapsed().as_secs() > timeout_secs {
+            return Err("Timeout waiting for LLM server to become ready".to_string());
+        }
+
+        // Пытаемся стукнуться в /health (стандартный эндпоинт llama.cpp)
+        match client.get(&url).send().await {
+            Ok(resp) => {
+                if resp.status().is_success() {
+                    return Ok(()); // Сервер ответил 200 OK
+                }
+            }
+            Err(_) => {
+                // Сервер еще не поднялся, ждем и пробуем снова
+                tokio::time::sleep(Duration::from_millis(500)).await;
+            }
+        }
+    }
+}

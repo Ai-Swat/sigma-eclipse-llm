@@ -19,6 +19,7 @@ interface UseModelDownloadReturn {
   handleDownloadLlama: () => Promise<void>;
   handleDownloadModel: () => Promise<void>;
   handleUncensoredChange: (checked: boolean) => Promise<void>;
+  handleCancelDownload: () => Promise<void>;
 }
 
 export const useModelDownload = ({
@@ -33,6 +34,32 @@ export const useModelDownload = ({
   setCurrentToastId,
   addLog,
 }: UseModelDownloadProps): UseModelDownloadReturn => {
+
+  const handleCancelDownload = async () => {
+
+    try {
+      if (1) {
+        addLog("No active model to cancel");
+        return;
+      }
+
+      addLog(`Cancel download requested for test`);
+
+      let res = await invoke("cancel_download_command", {
+        model_name: currentModel,
+      });
+
+      console.log("cancel_download result:", res);
+
+      toast.info("Download cancelled");
+
+    } catch (error) {
+      toast.error(`Cancel failed: ${error}`);
+      addLog(`Cancel failed: ${error}`);
+    }
+  };
+
+
   const handleDownloadLlama = async () => {
     if (isLlamaAlreadyDownloaded) {
       toast.error("Llama already downloaded");
@@ -105,34 +132,34 @@ export const useModelDownload = ({
         modelName: newModelName,
       });
 
-      if (!isDownloaded) {
-        // Model not downloaded, start download
-        toast.info(`Model '${newModelName}' not found, starting download...`);
-        setIsDownloadingModel(true);
-        setDownloadProgress(null);
+      // if (!isDownloaded) {
+      //   // Model not downloaded, start download
+      //   toast.info(`Model '${newModelName}' not found, starting download...`);
+      //   setIsDownloadingModel(true);
+      //   setDownloadProgress(null);
 
-        const toastId = toast.loading(`Downloading model '${newModelName}'...`);
-        setCurrentToastId(toastId);
+      //   const toastId = toast.loading(`Downloading model '${newModelName}'...`);
+      //   setCurrentToastId(toastId);
 
-        try {
-          const result = await invoke<string>("download_model_by_name", {
-            modelName: newModelName,
-          });
-          toast.success(result, { id: toastId });
-          addLog(result);
-        } catch (error) {
-          toast.error(`Error: ${error}`, { id: toastId });
-          addLog(`Error downloading: ${error}`);
-          // Revert checkbox on error
-          setIsUncensored(!checked);
-          localStorage.setItem("isUncensored", (!checked).toString());
-          return;
-        } finally {
-          setIsDownloadingModel(false);
-          setDownloadProgress(null);
-          setCurrentToastId(null);
-        }
-      }
+      //   try {
+      //     const result = await invoke<string>("download_model_by_name", {
+      //       modelName: newModelName,
+      //     });
+      //     toast.success(result, { id: toastId });
+      //     addLog(result);
+      //   } catch (error) {
+      //     toast.error(`Error: ${error}`, { id: toastId });
+      //     addLog(`Error downloading: ${error}`);
+      //     // Revert checkbox on error
+      //     setIsUncensored(!checked);
+      //     localStorage.setItem("isUncensored", (!checked).toString());
+      //     return;
+      //   } finally {
+      //     setIsDownloadingModel(false);
+      //     setDownloadProgress(null);
+      //     setCurrentToastId(null);
+      //   }
+      // }
 
       // Set as active model
       await invoke<string>("set_active_model_command", { modelName: newModelName });
@@ -151,6 +178,7 @@ export const useModelDownload = ({
     handleDownloadLlama,
     handleDownloadModel,
     handleUncensoredChange,
+    handleCancelDownload
   };
 };
 

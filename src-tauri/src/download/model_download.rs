@@ -1,10 +1,12 @@
 use super::download_utils::{load_config, verify_sha256};
 use crate::ipc_state::update_download_status;
 use crate::paths::{get_model_dir, is_model_downloaded};
-use crate::types::{DownloadProgress, ModelInfo};
+use crate::types::{DownloadProgress, ModelInfo, DownloadState};
+use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
 use futures_util::StreamExt;
 use std::fs;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, State};
 use tokio::io::{AsyncSeekExt, AsyncWriteExt};
 
 /// Maximum number of retry attempts for chunk read errors
@@ -106,6 +108,7 @@ async fn download_with_progress(
     zip_path: &std::path::Path,
     model_name: &str,
     app: &AppHandle,
+    cancel_flag: Arc<AtomicBool>,
 ) -> Result<u64, String> {
     let client = create_http_client()?;
 
@@ -191,6 +194,19 @@ async fn download_with_progress(
     log::info!("Starting download stream...");
 
     loop {
+        // Check for cancellation
+        if cancel_flag.load(Ordering::Relaxed) {
+            // Drop buffered stream data
+            log::info!("Download cancelled by user, stopping...");
+            let _ = file.flush().await;
+            let _ = file.sync_all().await;
+            
+            // Send cancellation event to frontend (optional)
+            let _ = app.emit("download-canceled", model_name);
+            
+            return Err("Download cancelled by user".to_string());
+        }
+
         match stream.next().await {
             Some(Ok(chunk)) => {
                 // Reset error counter on successful chunk
@@ -401,6 +417,7 @@ async fn download_model_common(
     model_url: &str,
     expected_sha256: &str,
     app: AppHandle,
+    cancel_flag: Arc<AtomicBool>,
 ) -> Result<String, String> {
     let model_dir = get_model_dir(model_name).map_err(|e| e.to_string())?;
     let zip_path = model_dir.join("model.zip");
@@ -412,11 +429,24 @@ async fn download_model_common(
     log::info!("Download destination: {:?}", zip_path);
 
     // Download with progress
-    let downloaded = match download_with_progress(model_url, &zip_path, model_name, &app).await {
+    let downloaded = match download_with_progress(
+        model_url, 
+        &zip_path, 
+        model_name, 
+        &app, 
+        cancel_flag.clone()
+    ).await {
         Ok(size) => size,
         Err(e) => {
-            // Clear IPC download status on error
             let _ = update_download_status(false, None);
+            
+            // If download was cancelled, keep partial file
+            // to allow resuming later
+            if e.contains("cancelled by user") {
+                log::info!("Download cancelled, keeping partial file for resume.");
+                return Err("Download cancelled".to_string());
+            }
+            
             return Err(e);
         }
     };
@@ -468,8 +498,19 @@ async fn download_model_common(
 pub async fn download_model_by_name(
     model_name: String,
     app: AppHandle,
+    state: State<'_, DownloadState>,
 ) -> Result<String, String> {
     // Load config to get model URL and SHA-256
+
+    // Create a cancellation flag for this download
+    let cancel_flag = Arc::new(AtomicBool::new(false));
+    
+    // Register the cancel flag in the shared state
+    {
+        let mut tasks = state.tasks.lock().map_err(|e| e.to_string())?;
+        tasks.insert(model_name.clone(), cancel_flag.clone());
+    }
+
     let config = load_config()?;
 
     let model_config = config
@@ -477,10 +518,30 @@ pub async fn download_model_by_name(
         .get(&model_name)
         .ok_or_else(|| format!("Model '{}' not found in configuration", model_name))?;
 
-    let model_url = &model_config.url;
-    let expected_sha256 = &model_config.sha256;
 
-    download_model_common(&model_name, model_url, expected_sha256, app).await
+
+    // let model_url = &model_config.url;
+    // let expected_sha256 = &model_config.sha256;
+
+    // download_model_common(&model_name, model_url, expected_sha256, app).await
+
+    let result = download_model_common(
+            &model_name, 
+            &model_config.url, 
+            &model_config.sha256, 
+            app, 
+            cancel_flag
+        ).await;
+
+    // Remove the cancel flag from the shared state
+    {
+        if let Ok(mut tasks) = state.tasks.lock() {
+            tasks.remove(&model_name);
+        }
+    }
+
+    result
+
 }
 
 
@@ -530,5 +591,25 @@ pub async fn delete_model(model_name: String) -> Result<String, String> {
 #[tauri::command]
 pub async fn check_model_downloaded(model_name: String) -> Result<bool, String> {
     is_model_downloaded(&model_name).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cancel_download_command(
+    model_name: String,
+    state: State<'_, DownloadState>,
+) -> Result<(), String> {
+    log::info!("Requesting cancellation for model");
+    
+    let tasks = state.tasks.lock().map_err(|e| e.to_string())?;
+    
+    if let Some(cancel_flag) = tasks.get(&model_name) {
+        // Устанавливаем флаг в true. Поток загрузки увидит это и остановится.
+        cancel_flag.store(true, Ordering::Relaxed);
+        log::info!("Cancellation flag set for {}", model_name);
+    } else {
+        log::warn!("No active download found for model: {}", model_name);
+    }
+    
+    Ok(())
 }
 

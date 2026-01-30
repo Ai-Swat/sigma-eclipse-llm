@@ -13,7 +13,7 @@ fn main() {
     
     // Pass EXTENSION_ID to the build
     let extension_id = std::env::var("EXTENSION_ID")
-        .unwrap_or_else(|_| "lidcgfpdpjpeambpilgmllbefcikkglh".to_string());
+        .unwrap_or_else(|_| "ebihdmcdigelnhlkapdcmgdjaieebidk".to_string());
     println!("cargo:rustc-env=EXTENSION_ID={}", extension_id);
     
     tauri_build::build()

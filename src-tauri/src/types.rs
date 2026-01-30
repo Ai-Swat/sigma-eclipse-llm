@@ -1,7 +1,22 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::process::Child;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
+use std::sync::atomic::AtomicBool;
+
+//Download state
+pub struct DownloadState {
+    // Key - model name, Value - cancel flag (true = cancel)
+    pub tasks: Mutex<HashMap<String, Arc<AtomicBool>>>,
+}
+
+impl Default for DownloadState {
+    fn default() -> Self {
+        Self {
+            tasks: Mutex::new(HashMap::new()),
+        }
+    }
+}
 
 // Server state management
 pub struct ServerState {

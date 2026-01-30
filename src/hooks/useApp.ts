@@ -60,7 +60,7 @@ export const useApp = () => {
   });
 
   // Model download handlers
-  const { handleDownloadLlama, handleDownloadModel, handleUncensoredChange } = useModelDownload({
+  const { handleDownloadLlama, handleDownloadModel, handleUncensoredChange, handleCancelDownload } = useModelDownload({
     baseModel,
     setIsUncensored,
     currentModel,
@@ -126,6 +126,7 @@ export const useApp = () => {
     handleDownloadLlama,
     handleDownloadModel,
     handleUncensoredChange,
+    handleCancelDownload,
   };
 };
 

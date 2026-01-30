@@ -52,6 +52,7 @@ function App() {
     handleDownloadLlama,
     handleDownloadModel,
     handleUncensoredChange,
+    handleCancelDownload,
   } = useApp();
 
   const {
@@ -88,6 +89,7 @@ function App() {
         onRestoreDefaults={handleRestoreDefaults}
         onClearAllData={handleClearAllData}
         isProduction={isProduction}
+        onCancelDownload={handleCancelDownload}
       />
 
       <div className="content">
