@@ -20,8 +20,8 @@ jobs:
             rust_target: aarch64-apple-darwin
             bundle_arg: app,dmg
             updater_target: darwin-aarch64
-          # Windows build
-          - platform: windows-latest
+          # Windows build (pinned to 2022 — DigiCert KSP incompatible with Server 2025)
+          - platform: windows-2022
             target: x86_64-pc-windows-msvc
             rust_target: x86_64-pc-windows-msvc
             bundle_arg: nsis
@@ -70,7 +70,7 @@ jobs:
           chmod +x binaries/sigma-eclipse-host-${{ matrix.target }}
 
       - name: Build native messaging host (Windows)
-        if: matrix.platform == 'windows-latest'
+        if: matrix.platform == 'windows-2022'
         run: |
           New-Item -ItemType Directory -Force -Path src-tauri\binaries | Out-Null
 
@@ -105,31 +105,12 @@ jobs:
           
           # Clean up
           rm certificate.p12
-          
-        # Add Windows SDK signtool to PATH
-      - name: Setup Windows SDK signtool (Windows)
-        if: matrix.platform == 'windows-latest'
-        shell: pwsh
-        run: |
-          # Find signtool.exe in Windows SDK
-          $signtoolPath = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "signtool.exe" -ErrorAction SilentlyContinue | 
-            Where-Object { $_.FullName -like "*\x64\*" } | 
-            Sort-Object { [version]($_.FullName -replace '.*\\(\d+\.\d+\.\d+\.\d+)\\.*', '$1') } -Descending | 
-            Select-Object -First 1
-          
-          if ($signtoolPath) {
-            $signtoolDir = $signtoolPath.DirectoryName
-            Write-Host "Found signtool at: $signtoolDir"
-            echo "$signtoolDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          } else {
-            Write-Error "signtool.exe not found in Windows SDK"
-            exit 1
-          }
+
       # =====================================
       # Windows Code Signing Setup (DigiCert KeyLocker)
       # =====================================
       - name: Setup DigiCert KeyLocker (Windows)
-        if: matrix.platform == 'windows-latest'
+        if: matrix.platform == 'windows-2022'
         shell: pwsh
         env:
           SM_API_KEY: ${{ secrets.SM_API_KEY }}
@@ -154,15 +135,9 @@ jobs:
           $certPath = "$env:RUNNER_TEMP\digicert_client_cert.p12"
           [IO.File]::WriteAllBytes($certPath, $certBytes)
           echo "SM_CLIENT_CERT_FILE=$certPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          
-          # Persist env vars at machine level so the DigiCert KSP DLL can read them
-          [System.Environment]::SetEnvironmentVariable("SM_HOST", "https://clientauth.one.digicert.com", [System.EnvironmentVariableTarget]::Machine)
-          [System.Environment]::SetEnvironmentVariable("SM_API_KEY", $env:SM_API_KEY, [System.EnvironmentVariableTarget]::Machine)
-          [System.Environment]::SetEnvironmentVariable("SM_CLIENT_CERT_FILE", $certPath, [System.EnvironmentVariableTarget]::Machine)
-          [System.Environment]::SetEnvironmentVariable("SM_CLIENT_CERT_PASSWORD", "${{ secrets.SM_CLIENT_CERT_PASSWORD }}", [System.EnvironmentVariableTarget]::Machine)
 
       - name: Verify DigiCert KeyLocker Setup (Windows)
-        if: matrix.platform == 'windows-latest'
+        if: matrix.platform == 'windows-2022'
         shell: pwsh
         env:
           SM_API_KEY: ${{ secrets.SM_API_KEY }}
@@ -172,7 +147,7 @@ jobs:
           smctl healthcheck
           
       - name: Sync certificates to Windows Store (Windows)
-        if: matrix.platform == 'windows-latest'
+        if: matrix.platform == 'windows-2022'
         shell: pwsh
         env:
           SM_API_KEY: ${{ secrets.SM_API_KEY }}
@@ -219,11 +194,29 @@ jobs:
           prerelease: false
           args: ${{ format('--target {0} --bundles {1} --verbose', matrix.rust_target, matrix.bundle_arg) }}
 
-    
+      # Add Windows SDK signtool to PATH
+      - name: Setup Windows SDK signtool (Windows)
+        if: matrix.platform == 'windows-2022'
+        shell: pwsh
+        run: |
+          # Find signtool.exe in Windows SDK
+          $signtoolPath = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "signtool.exe" -ErrorAction SilentlyContinue | 
+            Where-Object { $_.FullName -like "*\x64\*" } | 
+            Sort-Object { [version]($_.FullName -replace '.*\\(\d+\.\d+\.\d+\.\d+)\\.*', '$1') } -Descending | 
+            Select-Object -First 1
+          
+          if ($signtoolPath) {
+            $signtoolDir = $signtoolPath.DirectoryName
+            Write-Host "Found signtool at: $signtoolDir"
+            echo "$signtoolDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          } else {
+            Write-Error "signtool.exe not found in Windows SDK"
+            exit 1
+          }
 
       # Windows: Build WITHOUT uploading (we sign with Windows cert first, then recreate .sig, then upload)
       - name: Build Tauri app (Windows)
-        if: matrix.platform == 'windows-latest'
+        if: matrix.platform == 'windows-2022'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -235,65 +228,39 @@ jobs:
           args: ${{ format('--target {0} --bundles {1} --verbose', matrix.rust_target, matrix.bundle_arg) }}
 
       # =====================================
-      # Windows Code Signing with DigiCert via jsign
+      # Windows Code Signing with DigiCert KeyLocker
       # =====================================
-      - name: Download jsign
-        if: matrix.platform == 'windows-latest'
-        shell: pwsh
-        run: |
-          Invoke-WebRequest -Uri "https://github.com/ebourg/jsign/releases/download/6.0/jsign-6.0.jar" -OutFile "$env:RUNNER_TEMP\jsign.jar"
-          Write-Host "jsign downloaded to $env:RUNNER_TEMP\jsign.jar"
-
-      - name: Sign Windows binaries with DigiCert (jsign)
-        if: matrix.platform == 'windows-latest'
-        id: sign_windows
+      - name: Sign Windows binaries with DigiCert KeyLocker
+        if: matrix.platform == 'windows-2022'
         shell: pwsh
         env:
           SM_API_KEY: ${{ secrets.SM_API_KEY }}
           SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
+          SM_CODE_SIGNING_CERT_SHA1_HASH: ${{ secrets.SM_CODE_SIGNING_CERT_SHA1_HASH }}
           SM_HOST: https://clientauth.one.digicert.com
         run: |
-          $jsign = "$env:RUNNER_TEMP\jsign.jar"
-          $storepass = "$env:SM_API_KEY|$env:SM_CLIENT_CERT_FILE|$env:SM_CLIENT_CERT_PASSWORD"
+          # Find and sign all .exe files in the bundle
           $bundlePath = "src-tauri\target\${{ matrix.rust_target }}\release\bundle\nsis"
           
-          if (!(Test-Path $bundlePath)) {
-            Write-Error "Bundle path not found: $bundlePath"
-            exit 1
-          }
-          
-          $exeFiles = Get-ChildItem -Path $bundlePath -Filter "*.exe" -Recurse
-          
-          foreach ($exe in $exeFiles) {
-            Write-Host "Signing with jsign: $($exe.FullName)"
+          if (Test-Path $bundlePath) {
+            $exeFiles = Get-ChildItem -Path $bundlePath -Filter "*.exe" -Recurse
             
-            java -jar $jsign `
-              --storetype DIGICERTONE `
-              --alias "key_1406944933" `
-              --storepass "$storepass" `
-              --tsaurl "http://timestamp.digicert.com" `
-              --tsmode RFC3161 `
-              "$($exe.FullName)"
-            
-            if ($LASTEXITCODE -ne 0) {
-              Write-Error "jsign failed for $($exe.FullName)"
-              exit 1
+            foreach ($exe in $exeFiles) {
+              Write-Host "Signing: $($exe.FullName)"
+              
+              # Sign using signtool with SHA1 hash of the certificate
+              signtool sign /sha1 $env:SM_CODE_SIGNING_CERT_SHA1_HASH /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 "$($exe.FullName)"
+              
+              # Verify signature
+              signtool verify /pa "$($exe.FullName)"
             }
-            
-            Write-Host "Verifying signature..."
-            signtool verify /pa "$($exe.FullName)"
-            
-            if ($LASTEXITCODE -ne 0) {
-              Write-Error "Signature verification failed for $($exe.FullName)"
-              exit 1
-            }
-            
-            Write-Host "Signed and verified: $($exe.Name)"
+          } else {
+            Write-Host "Bundle path not found: $bundlePath"
           }
 
       # Recreate .sig file AFTER Windows code signing (the original .sig is invalid because the .exe was modified)
       - name: Recreate updater signature after Windows signing
-        if: matrix.platform == 'windows-latest' && steps.sign_windows.outcome == 'success'
+        if: matrix.platform == 'windows-2022'
         shell: pwsh
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -323,7 +290,7 @@ jobs:
 
       # Upload SIGNED Windows binaries to release
       - name: Upload signed Windows binaries to release
-        if: matrix.platform == 'windows-latest'
+        if: matrix.platform == 'windows-2022'
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.ref_name }}
