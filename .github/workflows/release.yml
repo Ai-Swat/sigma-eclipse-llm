@@ -240,14 +240,25 @@ jobs:
           SM_CODE_SIGNING_CERT_SHA1_HASH: ${{ secrets.SM_CODE_SIGNING_CERT_SHA1_HASH }}
           SM_HOST: https://clientauth.one.digicert.com
         run: |
+          Write-Host "=== Debug: listing keypairs ==="
+          smctl keypair ls
+          
+          Write-Host "=== Debug: listing certificates ==="
+          smctl certificate ls
+          
           $bundlePath = "src-tauri\target\${{ matrix.rust_target }}\release\bundle\nsis"
           
           if (Test-Path $bundlePath) {
             $exeFiles = Get-ChildItem -Path $bundlePath -Filter "*.exe" -Recurse
             
             foreach ($exe in $exeFiles) {
-              Write-Host "Signing via smctl: $($exe.FullName)"
-              smctl sign --fingerprint $env:SM_CODE_SIGNING_CERT_SHA1_HASH --input "$($exe.FullName)"
+              Write-Host "Signing via smctl (keypair-alias): $($exe.FullName)"
+              smctl sign --keypair-alias key_1406944933 --verbose --input "$($exe.FullName)"
+              
+              if ($LASTEXITCODE -ne 0) {
+                Write-Host "keypair-alias method failed, trying fingerprint..."
+                smctl sign --fingerprint $env:SM_CODE_SIGNING_CERT_SHA1_HASH --verbose --input "$($exe.FullName)"
+              }
               
               Write-Host "Verifying signature..."
               signtool verify /pa "$($exe.FullName)"
