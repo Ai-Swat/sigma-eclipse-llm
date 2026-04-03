@@ -2,8 +2,11 @@ use super::download_utils::{get_platform_id, load_config, verify_sha256};
 use crate::ipc_state::update_download_status;
 use crate::paths::{get_app_data_dir, get_bin_dir, get_llama_binary_path};
 use crate::types::DownloadProgress;
+use flate2::read::GzDecoder;
 use futures_util::StreamExt;
 use std::fs;
+use std::path::Path;
+use std::path::PathBuf;
 use tauri::{AppHandle, Emitter};
 use tokio::io::{AsyncSeekExt, AsyncWriteExt};
 
@@ -19,7 +22,8 @@ fn create_http_client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
         .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         .redirect(reqwest::redirect::Policy::limited(10))
-        .timeout(std::time::Duration::from_secs(300))
+        // Entire response (including body) must finish within this limit; short values abort large/slow downloads.
+        .timeout(std::time::Duration::from_secs(7200))
         .connect_timeout(std::time::Duration::from_secs(30))
         .pool_idle_timeout(std::time::Duration::from_secs(90))
         .tcp_keepalive(std::time::Duration::from_secs(60))
@@ -100,6 +104,35 @@ async fn start_download_request(
     Ok((response, total_size))
 }
 
+/// Local path for the downloaded archive (zip or tar.gz), derived from the URL.
+fn llama_download_archive_path(app_dir: &Path, url: &str) -> PathBuf {
+    if url.ends_with(".tar.gz") {
+        app_dir.join("llama-server.tar.gz")
+    } else {
+        app_dir.join("llama-server.zip")
+    }
+}
+
+/// Whether a path inside an archive should be extracted into `bin_dir` (flattened by file name).
+fn llama_member_should_extract(path_str: &str) -> bool {
+    if path_str.ends_with('/') {
+        return false;
+    }
+    let Some(base) = Path::new(path_str)
+        .file_name()
+        .and_then(|n| n.to_str())
+    else {
+        return false;
+    };
+    base.ends_with("llama-server")
+        || base.ends_with("llama-server.exe")
+        || base.ends_with(".dylib")
+        || base.ends_with(".dll")
+        || base.ends_with(".metal")
+        || base.ends_with(".so")
+        || base.contains(".so.")
+}
+
 /// Get the path to the version file
 fn get_version_file_path() -> Result<std::path::PathBuf, String> {
     let bin_dir = get_bin_dir().map_err(|e| e.to_string())?;
@@ -149,15 +182,27 @@ fn cleanup_old_llama_files(bin_dir: &std::path::Path) -> Result<(), String> {
         }
     }
 
-    // Remove old .dylib and .metal files
+    // Remove old shared libraries (.dylib/.metal on macOS, .dll on Windows)
     if let Ok(entries) = fs::read_dir(bin_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                if name == "llama-version.txt" {
+                    continue;
+                }
+            }
             if let Some(ext) = path.extension() {
-                if ext == "dylib" || ext == "metal" {
+                if ext == "dylib" || ext == "metal" || ext == "dll" {
                     if let Err(e) = fs::remove_file(&path) {
                         log::warn!("Failed to remove {:?}: {}", path, e);
                     }
+                }
+            }
+            // Also remove symlinks (macOS) that point to versioned dylibs
+            #[cfg(unix)]
+            if path.is_symlink() {
+                if let Err(e) = fs::remove_file(&path) {
+                    log::warn!("Failed to remove symlink {:?}: {}", path, e);
                 }
             }
         }
@@ -166,8 +211,8 @@ fn cleanup_old_llama_files(bin_dir: &std::path::Path) -> Result<(), String> {
     Ok(())
 }
 
-/// Extract llama-server and related files from archive
-fn extract_llama_archive(
+/// Extract llama-server and related files from a `.zip` archive
+fn extract_llama_zip(
     archive: &mut zip::ZipArchive<std::fs::File>,
     bin_dir: &std::path::Path,
 ) -> Result<(), String> {
@@ -185,14 +230,7 @@ fn extract_llama_archive(
             continue;
         }
 
-        // Extract llama-server (with or without .exe), .dylib files, .dll files, and .metal files
-        let should_extract = file_name.ends_with("llama-server")
-            || file_name.ends_with("llama-server.exe")
-            || file_name.ends_with(".dylib")
-            || file_name.ends_with(".dll")
-            || file_name.ends_with(".metal");
-
-        if should_extract {
+        if llama_member_should_extract(&file_name) {
             // Get just the filename without the path
             let filename = std::path::Path::new(&file_name)
                 .file_name()
@@ -213,6 +251,97 @@ fn extract_llama_archive(
                 found_server = true;
             }
         }
+    }
+
+    if !found_server {
+        return Err("llama-server binary not found in archive".to_string());
+    }
+
+    Ok(())
+}
+
+/// Extract llama-server and related files from a `.tar.gz` release bundle
+fn extract_llama_tar_gz(archive_path: &Path, bin_dir: &Path) -> Result<(), String> {
+    let file =
+        fs::File::open(archive_path).map_err(|e| format!("Failed to open tar.gz: {}", e))?;
+    let dec = GzDecoder::new(file);
+    let mut archive = tar::Archive::new(dec);
+    let mut found_server = false;
+
+    // Collect symlink pairs first, create them after all regular files are written.
+    let mut symlinks: Vec<(String, String)> = Vec::new();
+
+    for entry_result in archive
+        .entries()
+        .map_err(|e| format!("Failed to read tar entries: {}", e))?
+    {
+        let mut entry = entry_result.map_err(|e| format!("Bad tar entry: {}", e))?;
+        let entry_type = entry.header().entry_type();
+        let path_in = entry.path().map_err(|e| format!("Invalid tar path: {}", e))?;
+        let path_str = path_in.to_string_lossy().to_string();
+
+        if entry_type == tar::EntryType::Symlink {
+            if !llama_member_should_extract(&path_str) {
+                continue;
+            }
+            let link_name = Path::new(&path_str)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("")
+                .to_string();
+            let target = entry
+                .link_name()
+                .map_err(|e| format!("Bad symlink target: {}", e))?
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_default();
+            if !link_name.is_empty() && !target.is_empty() {
+                symlinks.push((link_name, target));
+            }
+            continue;
+        }
+
+        if !entry_type.is_file() {
+            continue;
+        }
+        if !llama_member_should_extract(&path_str) {
+            continue;
+        }
+        let filename = Path::new(&path_str)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .ok_or_else(|| format!("Invalid path: {}", path_str))?;
+
+        if filename == "llama-server" || filename == "llama-server.exe" {
+            found_server = true;
+        }
+
+        let output_path = bin_dir.join(filename);
+        log::info!("Extracting: {} -> {:?}", path_str, output_path);
+
+        let mut outfile = fs::File::create(&output_path)
+            .map_err(|e| format!("Failed to create output file: {}", e))?;
+        std::io::copy(&mut entry, &mut outfile)
+            .map_err(|e| format!("Failed to extract file: {}", e))?;
+    }
+
+    // Create symlinks (Unix) or copy the target file (Windows).
+    for (link_name, target) in &symlinks {
+        let link_path = bin_dir.join(link_name);
+        let _ = fs::remove_file(&link_path);
+
+        #[cfg(unix)]
+        {
+            // Use the relative target from the archive so the symlink stays portable.
+            std::os::unix::fs::symlink(target, &link_path).unwrap_or_else(|e| {
+                log::warn!("Symlink {} -> {} failed: {}, copying instead", link_name, target, e);
+                let _ = fs::copy(bin_dir.join(target), &link_path);
+            });
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = fs::copy(bin_dir.join(target), &link_path);
+        }
+        log::info!("Symlink: {} -> {}", link_name, target);
     }
 
     if !found_server {
@@ -266,7 +395,13 @@ pub async fn download_llama_cpp(app: AppHandle) -> Result<String, String> {
         cleanup_old_llama_files(&bin_dir)?;
     }
 
-    let zip_path = app_dir.join("llama-server.zip");
+    let archive_path = llama_download_archive_path(&app_dir, url);
+    let alternate_archive = if url.ends_with(".tar.gz") {
+        app_dir.join("llama-server.zip")
+    } else {
+        app_dir.join("llama-server.tar.gz")
+    };
+    let _ = fs::remove_file(&alternate_archive);
 
     log::info!("Downloading llama.cpp from: {}", url);
 
@@ -277,8 +412,8 @@ pub async fn download_llama_cpp(app: AppHandle) -> Result<String, String> {
     let supports_resume = check_range_support(&client, url).await;
 
     // Check if partial download exists
-    let mut downloaded: u64 = if supports_resume && zip_path.exists() {
-        let existing_size = tokio::fs::metadata(&zip_path)
+    let mut downloaded: u64 = if supports_resume && archive_path.exists() {
+        let existing_size = tokio::fs::metadata(&archive_path)
             .await
             .map(|m| m.len())
             .unwrap_or(0);
@@ -331,16 +466,16 @@ pub async fn download_llama_cpp(app: AppHandle) -> Result<String, String> {
         let mut f = tokio::fs::OpenOptions::new()
             .write(true)
             .append(true)
-            .open(&zip_path)
+            .open(&archive_path)
             .await
-            .map_err(|e| format!("Failed to open zip file for resume: {}", e))?;
+            .map_err(|e| format!("Failed to open archive for resume: {}", e))?;
         // Seek to end to ensure we're appending
         f.seek(std::io::SeekFrom::End(0))
             .await
             .map_err(|e| format!("Failed to seek to end of file: {}", e))?;
         f
     } else {
-        tokio::fs::File::create(&zip_path)
+        tokio::fs::File::create(&archive_path)
             .await
             .map_err(|e| format!("Failed to create file: {}", e))?
     };
@@ -505,9 +640,9 @@ pub async fn download_llama_cpp(app: AppHandle) -> Result<String, String> {
     let expected_hash = &platform_config.sha256;
     
     if !expected_hash.is_empty() {
-        if let Err(e) = verify_sha256(&zip_path, expected_hash) {
+        if let Err(e) = verify_sha256(&archive_path, expected_hash) {
             // Remove corrupted file
-            fs::remove_file(&zip_path).ok();
+            fs::remove_file(&archive_path).ok();
             // Clear IPC download status on error
             let _ = update_download_status(false, None);
             return Err(format!("Checksum verification failed: {}", e));
@@ -525,26 +660,32 @@ pub async fn download_llama_cpp(app: AppHandle) -> Result<String, String> {
         },
     );
 
-    // Unzip and extract llama-server binary and all required libraries
-    let file = match std::fs::File::open(&zip_path) {
-        Ok(f) => f,
-        Err(e) => {
+    if url.ends_with(".tar.gz") {
+        if let Err(e) = extract_llama_tar_gz(&archive_path, &bin_dir) {
             let _ = update_download_status(false, None);
-            return Err(format!("Failed to open zip file: {}", e));
+            return Err(e);
         }
-    };
+    } else {
+        let file = match std::fs::File::open(&archive_path) {
+            Ok(f) => f,
+            Err(e) => {
+                let _ = update_download_status(false, None);
+                return Err(format!("Failed to open archive: {}", e));
+            }
+        };
 
-    let mut archive = match zip::ZipArchive::new(file) {
-        Ok(a) => a,
-        Err(e) => {
+        let mut archive = match zip::ZipArchive::new(file) {
+            Ok(a) => a,
+            Err(e) => {
+                let _ = update_download_status(false, None);
+                return Err(format!("Failed to read zip archive: {}", e));
+            }
+        };
+
+        if let Err(e) = extract_llama_zip(&mut archive, &bin_dir) {
             let _ = update_download_status(false, None);
-            return Err(format!("Failed to read zip archive: {}", e));
+            return Err(e);
         }
-    };
-
-    if let Err(e) = extract_llama_archive(&mut archive, &bin_dir) {
-        let _ = update_download_status(false, None);
-        return Err(e);
     }
 
     // Make executable (Unix-like systems)
@@ -559,8 +700,7 @@ pub async fn download_llama_cpp(app: AppHandle) -> Result<String, String> {
             .map_err(|e| format!("Failed to set permissions: {}", e))?;
     }
 
-    // Remove zip file
-    fs::remove_file(&zip_path).ok();
+    fs::remove_file(&archive_path).ok();
 
     // Write version file to track installed version
     write_installed_version(version)?;

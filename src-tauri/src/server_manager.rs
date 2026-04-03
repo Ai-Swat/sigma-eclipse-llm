@@ -101,9 +101,19 @@ pub fn start_server_process(
         .arg("--ctx-size")
         .arg(config.ctx_size.to_string())
         .arg("--n-gpu-layers")
-        .arg(config.gpu_layers.to_string())
-        .arg("--flash-attn")
-        .arg("auto")
+        .arg(config.gpu_layers.to_string());
+
+    // Metal + flash-attention "auto" has triggered SIGABRT on some macOS / llama.cpp builds.
+    #[cfg(target_os = "macos")]
+    {
+        command.arg("--flash-attn").arg("off");
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        command.arg("--flash-attn").arg("auto");
+    }
+
+    command
         .arg("--batch-size")
         .arg("2048")
         .arg("--ubatch-size")

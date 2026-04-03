@@ -268,7 +268,14 @@ fn get_platform_settings(memory_gb: u64) -> (String, u32) {
 pub fn calculate_recommended_settings() -> Result<RecommendedSettings, String> {
     let memory_gb = get_system_memory_gb()?;
     let (recommended_model, recommended_ctx_size) = get_platform_settings(memory_gb);
-    let recommended_gpu_layers = 41;
+    // Windows path assumes CUDA and full offload; macOS uses Metal with different limits.
+    // Intel Macs often cannot safely use GPU offload like Apple Silicon.
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    let recommended_gpu_layers = 35_u32;
+    #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+    let recommended_gpu_layers = 0_u32;
+    #[cfg(not(target_os = "macos"))]
+    let recommended_gpu_layers = 41_u32;
 
     Ok(RecommendedSettings {
         memory_gb,

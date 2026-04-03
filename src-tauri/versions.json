@@ -3,34 +3,42 @@
   "description": "Version mapping for Sigma Eclipse LLM external dependencies",
   "appVersion": "0.1.0",
   "llamaCpp": {
-    "version": "b7140",
+    "version": "b8611",
     "platforms": {
       "macos-arm64": {
-        "url": "https://github.com/ggml-org/llama.cpp/releases/download/b7140/llama-b7140-bin-macos-arm64.zip",
-        "sha256": "a6c631d3be905917a3461d782ce8ca6ae89bafcdfb510a464336691bf52e472a"
+        "url": "https://github.com/ggml-org/llama.cpp/releases/download/b8611/llama-b8611-bin-macos-arm64.tar.gz",
+        "sha256": "63c1451ea35f377d444dd0a69324d979a423e63d144b304e49742b5f5c83e610"
+      },
+      "macos-x64": {
+        "url": "https://github.com/ggml-org/llama.cpp/releases/download/b8611/llama-b8611-bin-macos-x64.tar.gz",
+        "sha256": "6cab1963ee0f460ec968c770edbe623f3b887cc1c3148b36d4fdf69d2ad30df9"
+      },
+      "linux-x64": {
+        "url": "https://github.com/ggml-org/llama.cpp/releases/download/b8611/llama-b8611-bin-ubuntu-x64.tar.gz",
+        "sha256": "ed14a022f725de18af27befd66fa409fb01f8499e112047c4bc04decf20f4243"
       },
       "windows-x64": {
-        "url": "https://releases.sigmabrowser.com/dev/llamacpp/llama-b7140-bin-win-cuda-cublas-x86.zip",
-        "sha256": "c2d1356705b6cdad61823619bef0f51b60fa6b49cf5f9ee617b47ba2c6498357"
+        "url": "https://github.com/ggml-org/llama.cpp/releases/download/b8611/llama-b8611-bin-win-cpu-x64.zip",
+        "sha256": "230979ad05e350f6953a8fa0375bd138c87f319cbcd6c6865f89219ed10a19b4"
       },
       "windows-arm64": {
-        "url": "https://github.com/ggml-org/llama.cpp/releases/download/b7140/llama-b7140-bin-win-cpu-arm64.zip",
-        "sha256": "01ee09c30452b3370ba8727f8010a5b2900aaf31dff72e77163304ace1e7e31c"
+        "url": "https://github.com/ggml-org/llama.cpp/releases/download/b8611/llama-b8611-bin-win-cpu-arm64.zip",
+        "sha256": "415f0f6605bbc48684f143e5c36837c7d7de2cfd9977a611b5ca4533504fa693"
       }
     }
   },
   "models": {
     "model": {
-      "version": "v1.0",
-      "filename": "model-v1.0.gguf",
-      "url": "https://releases.sigmabrowser.com/dev/secure-llm/model.zip",
-      "sha256": "907ba4b9b9ae56726cac34cfa66be9d493f147e4823271f5120c6ad8ccf3a959"
+      "version": "qwen35-4b-jackrong-opus-reasoning-q6k-1",
+      "filename": "Qwen3.5-4B.Q6_K.gguf",
+      "url": "https://releases.sigmabrowser.com/dev/secure-llm/model_jackrong_qwen35_4b_opus_reasoning_q6k.zip",
+      "sha256": "faaf1c53d696ed804fdafc2210012adcae8df6c3003c59c8bb6057d7c7599ffc"
     },
     "model_uncensored": {
-      "version": "v1.0",
-      "filename": "model-uncensored-v1.0.gguf",
-      "url": "https://releases.sigmabrowser.com/dev/secure-llm/model_uncensored.zip",
-      "sha256": "21807105312d6494103934798c0da638e07d10278bfd29b715aba355c37f4864"
+      "version": "qwen35-4b-hauhau-uncensored-aggressive-q6k-1",
+      "filename": "Qwen3.5-4B-Uncensored-HauhauCS-Aggressive-Q6_K.gguf",
+      "url": "https://releases.sigmabrowser.com/dev/secure-llm/model_hauhau_qwen35_4b_uncensored_aggressive_q6k.zip",
+      "sha256": "3256c3b498b5ee214d1a262c2c09a033c47af94b76cbbf6b168c33ee10868273"
     },
     "model_s": {
       "version": "v1.0",
@@ -46,4 +54,3 @@
     }
   }
 }
-
